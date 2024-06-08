@@ -1,0 +1,375 @@
+---
+title: "researchnote"
+format: html
+editor: visual
+execute:
+  echo: false
+  
+author: 
+  - Yingying,Wen
+  - Zhu Meng
+  - Zhang Liang[温莹莹，中国社会科学院大学；朱萌，清华大学政治学系。张亮，中国社会科学院大学]
+---
+
+```{r setup,include = FALSE,echo=FALSE}
+set.seed(1021)
+options (warn = -1)
+# packbirth loading
+library(pacman)
+p_load("rio",
+       "here",
+       "scales",
+       "car",
+       "haven",
+       "MASS",
+       "modelsummary",
+       "bruceR",
+       "easystats")
+```
+
+# dataLoda
+
+```{r}
+#| eval: false
+cgss2021_raw <- read_dta("../data/CGSS2021.dta") 
+cgss2021 <- cgss2021_raw %>%
+  dplyr::select(.,id,provinces,community_i,type,A2,A3_1,A4,A5,A7a,A7f,A8a,A10,A15,A18,A28_1,A28_2,A28_3,A28_4,A28_5,A28_6,A29,A30_12,A30a,A30b,A30c,A33,A43_a,A43_b,A43_c,A43e,A68_1,A68_2,A68a_1,A68a_2,A68b,A69,E1,E35_A,E35_B,E35_C,E36_A,D8_b,H1,H2_1,H2_2,H2_3,H2_4,H2_5,H2_6,H2_7,H2_7,H2_8,H2_9,H2_9,H2_10,H2_11,H2_12,H2_13,H2_14,H2_15,H2_16,H3,H4,H5,H5a_1,H5a_2,H5a_3,H5a_4,H5a_5,H5a_6,H5a_7,H5a_8,H5a_9,H5a_10,H5a_12,H8,H9,H11,H13b_7,H13b_8,D12_a,D13_a,H14_1,H14_2,H14_3,H14_4,H14_4,H14_5,H14_6,H15,P5_1,P5_2,P5_3,P5_4,P6,P10_2,P10_4,P11a,P11b,P11c,P12_1,P12_4,P12_2,P12_3,P12_5,P12_6,P12_7,P19a,P19b,P20,P21_1,P21_2,P21_3,P22_a,P22_b,P22_c,weight,weight_raking)
+```
+
+# dataClean
+
+```{r}
+#| label: dataClean
+cgss2021$female <- cgss2021$A2
+cgss2021$age <- 2023 - cgss2021$A3_1
+cgss2021$race <- cgss2021$A4
+cgss2021$rural <- cgss2021$A5
+cgss2021$edu <- Recode(cgss2021$A7a,"1 = 0; 2:3 = 1; 4 = 2;5:8 = 3;9:10 = 4;11:13 = 5") 
+cgss2021$major <- Recode(cgss2021$A7f,"c(1,3,4,5,6,7,13,9) = 0;c(2,8,10,11,12) = 1;14 = NA")
+cgss2021$imcomePer <- cgss2021$A8a
+cgss2021$imcomePer[cgss2021$imcomePer > 9000000] <- NA
+
+#cgss2021 <- cgss2021 %>%
+#  mutate(imcomePer_level = cut(imcomePer,quantile(imcomePer,c(0,1/6,2/6,3/6,4/6,5/6,1),na.rm = TRUE),c("1","2","3","4","5","6"),right = FALSE,include.lowest = TRUE))
+
+cgss2021$party <- Recode(cgss2021$A10,"1:3 = 0;4 = 1;98:99 = NA")
+cgss2021$health <- Recode(cgss2021$A15,"98 = NA")
+cgss2021$huKou <- Recode(cgss2021$A18,"1 = 0; 2:5 = 1; 6:7 = NA")
+cgss2021$marriage <- Recode(cgss2021$A69,"c(1,2) = 0; 3:7 = 1")
+cgss2021$socailLevel_now <- cgss2021$A43_a
+cgss2021$socailLevel_aft <- cgss2021$A43_c
+cgss2021$trustSocial <- Recode(cgss2021$A33,"c(98,99) = NA")
+
+## Internet2healith
+cgss2021$healthSearch <- Recode(cgss2021$D12_a,"98:99 = NA")
+cgss2021$healthBehavior <- Recode(cgss2021$D13_a,"98:99 = NA")
+```
+
+
+# IV
+
+## TrustSystem
+
+```{r}
+#| label: trust_system
+cgss2021$trust_system <- cgss2021 %>%
+  dplyr::select(.,P5_1,P5_3,P5_2,P5_4) %>%
+  rowMeans(na.rm = TRUE) 
+cgss2021$trust_system_z <- scales::rescale(cgss2021$trust_system,to = c(0,1))
+
+cgss2021$trustPol_z <- scales::rescale(as.numeric(cgss2021$P5_4),to = c(0,1))
+cgss2021$trustMed_z <- scales::rescale(as.numeric(cgss2021$P5_2),to = c(0,1))
+cgss2021$trustSystem_z <- cgss2021 %>%
+  dplyr::select(.,trustMed_z,trustPol_z) %>%
+  rowMeans(na.rm = TRUE)
+```
+
+
+## MediaUse
+```{r}
+#| label: media use
+cgss2021$paper <- Recode(cgss2021$A28_1,"98:99 = NA")
+cgss2021$magazine <- Recode(cgss2021$A28_2,"98:99 = NA")
+cgss2021$broda <- Recode(cgss2021$A28_3,"98:99 = NA")
+cgss2021$tv <- Recode(cgss2021$A28_4,"98:99 = NA")
+cgss2021$internet <- Recode(cgss2021$A28_5,"98:99 = NA")
+cgss2021$phone <- Recode(cgss2021$A28_6,"98:99 = NA")
+cgss2021$mediaTra <- cgss2021 %>%
+  dplyr::select(.,paper,magazine,broda,tv) %>%
+  rowMeans(na.rm = TRUE) 
+cgss2021$mediaNew <- cgss2021 %>%
+  dplyr::select(.,phone,internet) %>%
+  rowMeans(na.rm = TRUE) 
+cgss2021$internetR <- Recode(cgss2021$A28_5,"1:2 = 0;3:5 = 1;98:99 = NA")
+cgss2021$inforSource <- Recode(cgss2021$A29,"1:4 = 0;5:6 = 1;98:99 = NA")
+cgss2021$internetFre <- Recode(cgss2021$A30_12,"98:99 = NA")
+cgss2021$phoneUse <- Recode(cgss2021$A30a,"2 = 0; 98:99 = NA")
+cgss2021$internetUse <- Recode(cgss2021$A30b,"2 = 0; 98:99 = NA")
+```
+
+## TrustGovernment
+
+```{r}
+#| label: government
+cgss2021$eva_loacl <- Recode(cgss2021$H8,"98 = NA") 
+cgss2021$eva_loacl_z <- scales::rescale(as.numeric(cgss2021$eva_loacl),to = c(0,1))
+cgss2021$eva_central <- Recode(cgss2021$H11,"98 = NA")
+cgss2021$eva_central_z <- scales::rescale(as.numeric(cgss2021$eva_central),to = c(0,1))
+```
+
+# Value
+
+## care
+
+```{r}
+#| label: care
+cgss2021$enCare <- Recode(cgss2021$P6,"98 = NA")
+cgss2021$res <- Recode(cgss2021$H15,"2:3 = 0;c(1,4) = 1")
+```
+
+## efficacy
+
+```{r}
+#| label: efficacy
+cgss2021$P12_1 <- 6 - Recode(cgss2021$P12_1,"98 = NA")
+cgss2021$P12_2 <- Recode(cgss2021$P12_2,"98 = NA")
+cgss2021$P12_3 <- 6 - Recode(cgss2021$P12_3,"98 = NA")
+cgss2021$P12_4 <- 6 - Recode(cgss2021$P12_4,"98 = NA")
+cgss2021$P12_5 <- 6 - Recode(cgss2021$P12_5, "98 = NA")
+cgss2021$P12_6 <- 6 - Recode(cgss2021$P12_6,"98 = NA")
+
+cgss2021$efficacyIn <- cgss2021 %>%
+  dplyr::select(.,P12_1,P12_4,P12_6) %>%
+  rowMeans(na.rm = TRUE)
+
+cgss2021$efficacyEx <- cgss2021 %>%
+  dplyr::select(.,P12_5,P12_7) %>%
+  rowMeans(na.rm = TRUE)
+
+cgss2021$efficacy <- cgss2021 %>%
+  dplyr::select(.,P12_1,P12_2,P12_6,P12_4,P12_5,P12_7) %>%
+  rowMeans(na.rm = TRUE)
+  
+```
+
+## Envoirnment persetive
+
+```{r}
+cgss2021$pollutionChina <- Recode(cgss2021$H1,"98 = NA")
+cgss2021$P12_7 <- Recode(cgss2021$P12_7,"98 = NA")
+cgss2021$per <- cgss2021 %>%
+  dplyr::select(.,P12_7,pollutionChina) %>%
+  rowMeans(na.rm = TRUE)
+cgss2021$pollut_air <-  Recode(cgss2021$H2_1,"c(7,98) = NA") 
+cgss2021$pollut_water <- Recode(cgss2021$H2_2,"c(7,98) = NA")
+cgss2021$pollut_industry <- Recode(cgss2021$H2_5,"c(7,98) = NA")
+cgss2021$pollut_life <- Recode(cgss2021$H2_6,"c(7,98) = NA") 
+cgss2021$pollut_waste <- Recode(cgss2021$H2_14,"c(7,98) = NA") 
+cgss2021$pollut_prese <- cgss2021 %>%
+  dplyr::select(., pollut_air, pollut_water, pollut_industry,pollut_life,pollut_waste) %>%
+  rowMeans(na.rm = TRUE)
+
+```
+
+## Infomation/Konwledge
+
+```{r}
+cgss2021$pollutionKnow  <- Recode(cgss2021$H3,"98 = NA")
+cgss2021$solveKnow  <- Recode(cgss2021$H4,"98 = NA")
+cgss2021$know <- cgss2021 %>%
+  dplyr::select(.,pollutionKnow,solveKnow) %>%
+  rowMeans(na.rm = TRUE)
+```
+
+## responsibility
+
+```{r}
+cgss2021$res_alleviate <- Recode(cgss2021$H9,"98 = NA")
+cgss2021$res_alleviater <- Recode(cgss2021$H9,"c(1,3,4) = 0; 2 = 1; 98 = NA")
+cgss2021$res_class <- Recode(cgss2021$H15,"5 = NA")
+cgss2021$res_classr <- Recode(cgss2021$H15,"c(1,3,4) = 0; 2 = 1; 5 = NA")
+```
+
+
+# OV
+
+## behavior
+
+```{r}
+#| label: enBehovior
+cgss2021$class <- 5 - Recode(cgss2021$P19a,"98 = NA")
+cgss2021$buy <- 5 - cgss2021$P19b
+cgss2021$org <- Recode(cgss2021$P19a,"2 = 0")
+cgss2021$sig <- Recode(cgss2021$P21_1,"2 = 0")
+cgss2021$donate <- Recode(cgss2021$P21_2,"2 = 0")
+cgss2021$protest <- Recode(cgss2021$P21_3,"2 = 0")
+cgss2021$action <- cgss2021 %>%
+  dplyr::select(.,class,buy) %>%
+  rowMeans(na.rm = TRUE)
+
+
+cgss2021$solveAction  <- Recode(cgss2021$H5,"2:4 = 0")
+cgss2021$solveAction_level  <- Recode(cgss2021$H5,"c(2,4) = 0;3 = 1;1 = 2")
+```
+
+## protest
+
+```{r}
+#| label: protest
+cgss2021$district <- cgss2021$H5a_1
+cgss2021$hood <- cgss2021$H5a_2
+cgss2021$workpalce <- cgss2021$H5a_3
+cgss2021$gover_loacl <- cgss2021$H5a_4
+cgss2021$exprosure <- cgss2021$H5a_5
+cgss2021$news_unit <- cgss2021$H5a_6
+cgss2021$org <- cgss2021$H5a_7
+cgss2021$gover_super <- cgss2021$H5a_8
+cgss2021$justi <- cgss2021$H5a_9
+cgss2021$collect <- cgss2021$H5a_10
+cgss2021$petition <- cgss2021$H5a_12
+
+cgss2021$protest_total <- cgss2021 %>%
+  dplyr::select(hood,workpalce,org,exprosure,news_unit,gover_loacl,gover_super,justi,district,collect,petition) %>%
+  rowMeans(na.rm = TRUE)
+
+```
+
+### Factor analysis
+
+```{r}
+#| eval:fales
+#| label:factor analysis
+library(psych)
+cgss2021_protest <- cgss2021_raw %>%
+  dplyr::select(.,H5a_1,H5a_2,H5a_3,H5a_4,H5a_5,H5a_6,H5a_7,H5a_8,H5a_9,H5a_10) %>%
+  scale(.,center = T, scale = T)
+
+pca_protest <- principal(r = cgss2021_protest, nfactors = 1, rotate = "varimax",scores = TRUE)
+# 获取主成分得分
+head(pca_protest$scores,12)
+# 
+kmo_action <- KMO(cgss2021_protest)
+bartlett.test(cgss2021_protest)
+
+## 结果不太理想：
+# PC1栏包含了成分载荷，指观测变量与主成分的相关系数。如果提取不止一个主成分，则还将会有PC2、PC3等栏。成分载荷（component loadings）可用来解释主成分的含义。此处可看到，第一主成分（PC1）与每个变量都高度相关，也就是说，它是一个可用来进行一般性评价的维度。
+# h2(成分公因子方差):主成分对每个变量的方差解释度。
+# u2(成分唯一性):方差无法被主成分解释的比例（1-h2）
+# Proportin Var行:表示每个主成分对整个数据集的解释程度。
+# - 按照因子分析的结果对variable进行归类也不符合我们的理论设计。
+
+```
+
+
+# Regression
+
+## Behavior_objective
+
+### government2behavior
+```{r}
+lm_local2ac <- lm(action ~ eva_loacl_z + age + female + edu + socailLevel_now + lag(imcomePer) + party + race + rural + health + marriage,data = cgss2021)
+
+lm_cen2ac <- lm(action ~ eva_central_z + age + female + edu + socailLevel_now  + lag(imcomePer)  + party + race + rural + health + marriage,data = cgss2021)
+
+lm_local2media <- lm(mediaNew ~ eva_loacl_z + age + female + edu + socailLevel_now + lag(imcomePer) + party + race + rural + health + marriage,data = cgss2021)
+
+lm_local_med2ac <- lm(action ~ eva_loacl_z + age + female + edu + socailLevel_now + mediaNew + lag(imcomePer) + party + race + rural + health + marriage,data = cgss2021)
+
+lm_cen_med2ac <- lm(action ~ eva_central_z + age + female + edu + socailLevel_now + mediaNew + lag(imcomePer)  + party + race + rural + health + marriage,data = cgss2021)
+
+lm_local2test <- lm(protest_total ~ eva_loacl_z + age + female + edu + socailLevel_now  + lag(imcomePer)  + party + race + rural + health + marriage,data = cgss2021)
+
+lm_cen2test <- lm(protest_total ~ eva_central_z + age + female + edu + socailLevel_now + lag(imcomePer) + party + race + rural + health + marriage,data = cgss2021)
+
+lm_local_med2test <- lm(protest_total ~ eva_loacl_z  + age + female + edu + socailLevel_now + mediaNew + lag(imcomePer) + party + race + rural + health + marriage,data = cgss2021)
+
+lm_cen_med2test <- lm(protest_total ~ eva_central_z  + age + female + edu + socailLevel_now + mediaNew + lag(imcomePer)  + party + race + rural + health + marriage,data = cgss2021)
+
+
+cm <-c(
+  eva_loacl_z = "对地方政府的评价",
+  eva_central_z = "对中央政府的评价",
+  age = "年龄",
+  female = "性别",
+  party = "党派",
+  edu = "受教育程度",
+  socailLevel_now = "社会经济地位",
+  race = "民族",
+  rural = "城镇户口",
+  health = "健康状况",
+  children = "是否有孩子",
+  marriage = "婚姻状况",
+  mediaTra = "传统媒体",
+  mediaNew = "新媒体使用",
+  internetUse = "互联网使用",
+  `lag(imcomePer)` = "个人收入",
+  trustSystem_max = "系统信任"
+)
+
+mlist_behavior <- list(
+  "垃圾分类(地方)_直接"= lm_local2ac,
+  "垃圾分类(地方)_总" = lm_local_med2ac,
+  "地方对媒体使用" = lm_local2media,
+  "垃圾分类(中央)_直接"= lm_cen2ac,
+  "垃圾分类(中央)_总" = lm_cen_med2ac
+)
+
+modelsummary(mlist_behavior,
+             stars = TRUE,
+             coef_rename = cm,
+             output = "../outputs/results_behavior_med.html")
+
+mlist_protest <- list(
+  "环境抗争(地方)_直接" = lm_local2test,
+  "环境抗争(地方)_总" = lm_local_med2test,
+  "环境抗争(中央)_直接" = lm_cen2test,
+  "环境抗争(中央)_总" = lm_cen_med2test
+)
+
+modelsummary(mlist_protest,
+             stars = TRUE,
+             coef_rename = cm,
+             output = "../outputs/results_protest_med.html")
+```
+
+:::{.callout-tip}
+1. 地方政府：
+  - 垃圾分类：直接效应显著，对地方政府信任程度越高，越容易参与垃圾分类；总效应要看中介变量，互联网使用(internetUse)无显著性，但新媒体使用(mediaNew)为的总效应正面影响;
+  - 环境抗争：如果用新媒体使用(mediaNew)为中介变量，总效应只达到90%的显著性。但中介效应分析不显著，且为负面。
+2. 中央政府：
+  - 垃圾分类：直接效应不显著
+  - 环境抗争：如果用新媒体使用(mediaNew)为中介变量，总负面效应只达到90%的显著性。
+:::
+
+
+
+### systemtrust2behavior
+```{r}
+lm_ac_sys <- lm(action ~ trust_system + age + female + edu + socailLevel_now + internetUse + lag(imcomePer) + party + race + rural + health + marriage,data = cgss2021)
+
+lm_total_sys <- lm(protest_total ~ trust_system + age + female + edu + socailLevel_now + internetUse + lag(imcomePer)  + party + race + rural + health + marriage,data = cgss2021)
+
+
+mlist_sys2behavior <- list(
+  "垃圾分类"= lm_ac_sys,
+  "环境抗争" = lm_total_sys
+)
+
+modelsummary(mlist_sys2behavior,
+             stars = TRUE,
+             coef_rename = cm,
+             output = "../outputs/results_sys2behavior.html")
+
+```
+
+:::{.callout-tip}
+1. 目前用媒体信任和人大信任来衡量系统信任或者整个问题来衡量，不管是trust_system还是trust_system_z,结果都不理想：与垃圾分类是负相关，对环境抗争没影响。
+:::
+
+:::{.callout-tip}
+社会经济地位:socailLevel_now
+价值信念规范:谁对环境负责？
+政治参与、政府信任：政治参与最好是用政治效能感作为代理变量？还是说直接用政治参与(如是否参与过投票这些)，政府信任主要是对中央政府和地方政府的信任来衡量；
+政治系统信任：目前是用对媒体的信任和对
+:::
+
