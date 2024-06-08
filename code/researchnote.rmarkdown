@@ -1,0 +1,640 @@
+---
+title: "researchnote"
+format: html
+editor: visual
+execute:
+  echo: false
+author: 
+  - name: 温莹莹
+    affiliation: 
+      - 中国社会科学院大学
+  - name: 朱萌
+    corresponding: true
+    affiliation: 
+      - 清华大学政治学系
+  - name: 张亮
+    affiliation: 
+      - 中国社会科学院大学
+---
+
+```{r setup,include = FALSE,echo=FALSE}
+set.seed(1021)
+options (warn = -1)
+# packbirth loading
+library(pacman)
+p_load("rio",
+       "here",
+       "scales",
+       "car",
+       "haven",
+       "MASS",
+       "modelsummary",
+       "bruceR",
+       "easystats",
+       "dotwhisker")
+```
+
+
+# dataLoda
+
+
+```{r}
+cgss2021_raw <- read_dta("../data/CGSS2021.dta") 
+cgss2021 <- cgss2021_raw %>%
+  dplyr::select(.,id,provinces,community_i,type,A2,A3_1,A4,A5,A7a,A7f,A8a,A10,A15,A18,A28_1,A28_2,A28_3,A28_4,A28_5,A28_6,A29,A30_12,A30a,A30b,A30c,A33,A43_a,A43_b,A43_c,A43e,A68_1,A68_2,A68a_1,A68a_2,A68b,A69,E1,E35_A,E35_B,E35_C,E36_A,D8_b,H1,H2_1,H2_2,H2_3,H2_4,H2_5,H2_6,H2_7,H2_7,H2_8,H2_9,H2_9,H2_10,H2_11,H2_12,H2_13,H2_14,H2_15,H2_16,H3,H4,H5,H5a_1,H5a_2,H5a_3,H5a_4,H5a_5,H5a_6,H5a_7,H5a_8,H5a_9,H5a_10,H5a_12,H8,H9,H11,H13b_7,H13b_8,D12_a,D13_a,H14_1,H14_2,H14_3,H14_4,H14_4,H14_5,H14_6,H15,P5_1,P5_2,P5_3,P5_4,P6,P10_2,P10_4,P11a,P11b,P11c,P12_1,P12_4,P12_2,P12_3,P12_5,P12_6,P12_7,P19a,P19b,P20,P21_1,P21_2,P21_3,P22_a,P22_b,P22_c,weight,weight_raking)
+```
+
+
+# dataClean
+
+
+```{r}
+#| label: dataClean
+cgss2021$female <- cgss2021$A2
+cgss2021$age <- 2023 - cgss2021$A3_1
+cgss2021$race <- cgss2021$A4
+cgss2021$rural <- cgss2021$A5
+cgss2021$edu <- Recode(cgss2021$A7a,"1 = 0; 2:3 = 1; 4 = 2;5:8 = 3;9:10 = 4;11:13 = 5") 
+cgss2021$major <- Recode(cgss2021$A7f,"c(1,3,4,5,6,7,13,9) = 0;c(2,8,10,11,12) = 1;14 = NA")
+cgss2021$imcomePer <- cgss2021$A8a
+cgss2021$imcomePer[cgss2021$imcomePer > 9000000] <- NA
+cgss2021$imcomePer <- as.numeric(cgss2021$imcomePer)
+cgss2021 <- cgss2021 %>%
+  mutate(.,imcomePer_level = cut(imcomePer,breaks = unique(quantile(cgss2021$imcomePer,na.rm = TRUE,probs = seq(0, 1, 1/6))),labels = paste0("Group",1:5),right = FALSE,include.lowest = TRUE)) 
+cgss2021$imcomePer_level <- as.numeric(cgss2021$imcomePer_level)
+
+cgss2021$party <- Recode(cgss2021$A10,"1:3 = 0;4 = 1;98:99 = NA")
+cgss2021$health <- Recode(cgss2021$A15,"98 = NA")
+cgss2021$huKou <- Recode(cgss2021$A18,"1 = 0; 2:5 = 1; 6:7 = NA")
+cgss2021$marriage <- Recode(cgss2021$A69,"c(1,2) = 0; 3:7 = 1")
+cgss2021$socailLevel_now <- cgss2021$A43_a
+cgss2021$socailLevel_aft <- cgss2021$A43_c
+cgss2021$trustSocial <- Recode(cgss2021$A33,"c(98,99) = NA")
+
+```
+
+
+# IV
+
+## TrustSystem
+
+
+```{r}
+#| label: trust_system
+cgss2021$trust_system <- cgss2021 %>%
+  dplyr::select(.,P5_1,P5_3,P5_2,P5_4) %>%
+  rowMeans(na.rm = TRUE) 
+cgss2021$trust_system_z <- scales::rescale(cgss2021$trust_system,to = c(0,1))
+```
+
+
+## MediaUse
+
+
+```{r}
+#| label: media use
+cgss2021$paper <- Recode(cgss2021$A28_1,"98:99 = NA")
+cgss2021$magazine <- Recode(cgss2021$A28_2,"98:99 = NA")
+cgss2021$broda <- Recode(cgss2021$A28_3,"98:99 = NA")
+cgss2021$tv <- Recode(cgss2021$A28_4,"98:99 = NA")
+cgss2021$internet <- Recode(cgss2021$A28_5,"98:99 = NA")
+cgss2021$phone <- Recode(cgss2021$A28_6,"98:99 = NA")
+cgss2021$media <- cgss2021 %>%
+  select(.,paper,magazine,broda,tv,phone,internet) %>%
+  rowMeans(na.rm = TRUE)
+cgss2021$mediaTra <- cgss2021 %>%
+  dplyr::select(.,paper,magazine,broda,tv,phone) %>%
+  rowMeans(na.rm = TRUE) 
+cgss2021$mediaNew <- cgss2021$internet
+
+cgss2021$inforSource <- Recode(cgss2021$A29,"1:4 = 0;5 = 1;6 = 0;98:99 = NA")
+```
+
+
+## TrustGovernment
+
+
+```{r}
+#| label: government
+cgss2021$eva_loacl <- Recode(cgss2021$H8,"98 = NA") 
+cgss2021$eva_loacl_z <- scales::rescale(as.numeric(cgss2021$eva_loacl),to = c(0,1))
+cgss2021$eva_central <- Recode(cgss2021$H11,"98 = NA")
+cgss2021$eva_central_z <- scales::rescale(as.numeric(cgss2021$eva_central),to = c(0,1))
+```
+
+
+# Value
+
+## care
+
+
+```{r}
+#| label: care
+cgss2021$enCare <- Recode(cgss2021$P6,"98 = NA")
+```
+
+
+## efficacy
+
+
+```{r}
+#| label: efficacy
+cgss2021$P12_1 <- 6 - Recode(cgss2021$P12_1,"98 = NA")
+cgss2021$P12_2 <- Recode(cgss2021$P12_2,"98 = NA")
+cgss2021$P12_3 <- 6 - Recode(cgss2021$P12_3,"98 = NA")
+cgss2021$P12_4 <- 6 - Recode(cgss2021$P12_4,"98 = NA")
+cgss2021$P12_5 <- 6 - Recode(cgss2021$P12_5, "98 = NA")
+cgss2021$P12_6 <- 6 - Recode(cgss2021$P12_6,"98 = NA")
+
+cgss2021$efficacyIn <- cgss2021 %>%
+  dplyr::select(.,P12_1,P12_2) %>%
+  rowMeans(na.rm = TRUE)
+
+cgss2021$efficacyEx <- cgss2021$P12_5 
+
+cgss2021$efficacy <- cgss2021 %>%
+  dplyr::select(.,P12_1,P12_2,P12_6,P12_4,P12_5,P12_7) %>%
+  rowMeans(na.rm = TRUE)
+  
+```
+
+
+## Envoirnment persetive
+:::{.callout-note collapse="true"}
+下面是环境感知，主要是问题为“.以下是各种类型的环境问题，您觉得它们在您居住地区的严重程度是怎样的？”。选择了空气/水/土壤等。
+:::
+
+```{r}
+cgss2021$pollutionChina <- Recode(cgss2021$H1,"98 = NA")
+cgss2021$pollut_air <-  Recode(cgss2021$H2_1,"c(7,98) = NA")
+cgss2021$pollut_air <- 6 - cgss2021$pollut_air
+cgss2021$pollut_water <- Recode(cgss2021$H2_2,"c(7,98) = NA")
+cgss2021$pollut_water <- 6 - cgss2021$pollut_water
+cgss2021$pollut_industry <- Recode(cgss2021$H2_5,"c(7,98) = NA")
+cgss2021$pollut_industry <- 6 - cgss2021$pollut_industry
+cgss2021$pollut_life <- Recode(cgss2021$H2_6,"c(7,98) = NA") 
+cgss2021$pollut_life <- 6 - cgss2021$pollut_life
+cgss2021$pollut_waste <- Recode(cgss2021$H2_14,"c(7,98) = NA") 
+cgss2021$pollut_waste <- 6 - cgss2021$pollut_waste
+cgss2021$pollut_prese <- cgss2021 %>%
+  dplyr::select(., pollut_air, pollut_water, pollut_industry,pollut_life,pollut_waste) %>%
+  rowMeans(na.rm = TRUE)
+```
+
+
+
+## responsibility
+:::{.callout-note collapse="true"}
+以下问题为谁为环境问题负责：个人/政府/企业/公民团体。
+:::
+
+```{r}
+cgss2021$res_alleviate <- Recode(cgss2021$H9,"98 = NA")
+cgss2021$res_alleviater <- Recode(cgss2021$H9,"c(1,2,4) = 0; 3 = 1; 98 = NA")
+cgss2021$res_class <- Recode(cgss2021$H15,"5 = NA")
+cgss2021$res_classr <- Recode(cgss2021$H15,"c(1,2,4) = 0; 3 = 1; 5 = NA")
+```
+
+
+# OV
+
+## behavior
+
+
+```{r}
+#| label: enBehovior
+cgss2021$class <- 5 - Recode(cgss2021$P19a,"98 = NA")
+cgss2021$buy <- 5 - cgss2021$P19b
+cgss2021$action <- cgss2021 %>%
+  dplyr::select(.,class,buy) %>%
+  rowMeans(na.rm = TRUE)
+
+cgss2021$org <- Recode(cgss2021$P20,"2 = 0")
+
+cgss2021$sig <- Recode(cgss2021$P21_1,"2 = 0")
+cgss2021$donate <- Recode(cgss2021$P21_2,"2 = 0")
+cgss2021$protest <- Recode(cgss2021$P21_3,"2 = 0")
+cgss2021$radical <- cgss2021 %>%
+  select(.,sig,donate,protest) %>%
+  rowMeans(na.rm = TRUE)
+
+
+cgss2021$solveAction  <- Recode(cgss2021$H5,"2:4 = 0")
+cgss2021$solveAction_level  <- Recode(cgss2021$H5,"c(2,4) = 0;3 = 1;1 = 2")
+```
+
+
+## protest
+
+
+```{r}
+#| label: protest
+cgss2021$participate <- Recode(cgss2021$H5,"2:3= 0; 4= NA")
+cgss2021$district <- cgss2021$H5a_1
+cgss2021$hood <- cgss2021$H5a_2
+cgss2021$workpalce <- cgss2021$H5a_3
+cgss2021$gover_loacl <- cgss2021$H5a_4
+cgss2021$exprosure <- cgss2021$H5a_5
+cgss2021$news_unit <- cgss2021$H5a_6
+cgss2021$org <- cgss2021$H5a_7
+cgss2021$gover_super <- cgss2021$H5a_8
+cgss2021$justi <- cgss2021$H5a_9
+cgss2021$collect <- cgss2021$H5a_10
+cgss2021$petition <- cgss2021$H5a_12
+
+cgss2021$protest_total <- cgss2021 %>%
+  dplyr::select(hood,workpalce,org,exprosure,news_unit,gover_loacl,gover_super,justi,district) %>%
+  rowMeans(na.rm = TRUE)
+```
+
+
+
+# Regression
+
+## Behavior_objective
+
+### government2behavior
+:::{.callout-note collapse="true}
+1. inforSource：在以上媒体中，哪个是您最主要的信息来源？(互联网和手机)。如果结果不理想，是否可以变为只看互联网？——也不行
+2. mediaNew：互联网频率
+4. mediaTra：传统媒介使用频率
+:::
+
+
+```{r}
+cm <-c(
+  eva_loacl_z = "对地方政府的评价",
+  eva_central_z = "对中央政府的评价",
+  efficacyIn = "内部环境效能感",
+  efficacyEx = "外部环境效能感",
+  res_classr = "责任归因",
+  pollut_prese = "环境感知度",
+  enCare = "环境关注度",
+  age = "年龄",
+  female = "性别",
+  party = "党派",
+  edu = "受教育程度",
+  socailLevel_now = "社会经济地位",
+  imcomePer_level = "个人收入",
+  race = "民族",
+  rural = "城镇户口",
+  health = "健康状况",
+  marriage = "婚姻状况",
+  media = "媒介使用",
+  trustSystem_z = "系统信任"
+)
+```
+
+
+::: {#imp-mediation .callout-important}
+## title = "中介效应"
+1.  地方政府：
+  - 垃圾分类：
+    - 新媒体使用(mediaNew)：直接效应显著，对地方政府信任程度越高，越容易参与垃圾分类；但新媒体使用(mediaNew)为的总效应正面影响;中介效应不明显。
+    - 互联网使用频率(internetR)：无显著性。
+  - 环境抗争：
+    - 新媒体使用(mediaNew)：总效应只达到90%的显著性。但中介效应分析不显著，且为负面。
+    - 互联网使用频率(internetR)：无显著性
+2.  中央政府：
+  - 垃圾分类：
+    - 新媒体使用(mediaNew):直接效应不显著;
+    - 互联网使用频率(internetR)：无显著性
+  - 环境抗争：如果用新媒体使用(mediaNew)为中介变量，总负面效应只达到90%的显著性。
+:::
+
+::: {#imp-mediator .callout-important}
+## title = "调节效应"
+1.  地方政府：
+  - 垃圾分类：
+    - 新媒体使用(mediaNew):直接效应显著,调节效应加进去后结果不显著了。
+    - 互联网使用频率(internetR):直接效应显著,调节效应加进去后结果不显著了。
+    - 互联网作为主要信息来源(inforSource)：直接效应显著,调节效应加进去后结果不显著了。
+  - 环境抗争：
+    - 新媒体使用(mediaNew):直接效应不显著，但是新媒体使用加进去后，各自为负显著，交互项为正，这表明对地方政府评价越高，越使用新媒体越不容易参加环境抗争，但对地方政府评价一样的情况下使用新媒体越多更容易参与环境抗争。
+    - 互联网使用频率(internetR)：结果与新媒体使用一模一样！这貌似不符合理论假设？
+    - 互联网作为主要信息来源(inforSource)：无显著性。
+2.  中央政府：
+  - 垃圾分类：
+    - 新媒体使用(mediaNew)：直接效应和调节效应都不显著。
+    - 互联网使用频率(internetR)：直接效应和调节效应不显著。
+    - 互联网作为主要信息来源(inforSource)：无显著性。
+  - 环境抗争：
+    - 新媒体使用(mediaNew)：
+    - 互联网使用频率(internetR)的调节效应加进去后都不显著。
+    - 互联网作为主要信息来源(inforSource)：无显著性。
+:::
+
+:::{.callout-tip}
+综上所述：调节效应似乎也不是很好？看看其他变量,见 @imp-other部分。
+:::
+
+### systemtrust2behavior
+
+
+```{r}
+lm_ac_sys <- lm(action ~ trust_system + age + female + edu + socailLevel_now + imcomePer_level + party + race + rural + health + marriage,data = cgss2021)
+
+lm_total_sys <- lm(protest_total ~ trust_system + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage,data = cgss2021)
+
+mlist_sys2behavior <- list(
+  "垃圾分类"= lm_ac_sys,
+  "环境抗争" = lm_total_sys
+)
+
+modelsummary(mlist_sys2behavior,
+             stars = TRUE,
+             coef_rename = cm)
+```
+
+
+::: {.callout-tip collapse="true"}
+1.  目前用媒体信任和人大信任来衡量系统信任或者整个问题来衡量，不管是trust_system还是trust_system_z,结果都不理想：与垃圾分类是负相关，对环境抗争没影响。
+:::
+
+# Meidation analysis
+## local mediation effect
+
+```{r}
+#| lable: mediation analysis
+
+lm_local2action <- lm(action ~ eva_loacl_z + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
+
+lm_local2perse <- lm(pollut_prese ~ eva_loacl_z + age + female + edu + socailLevel_now + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
+
+lm_local_total_per <- lm(action ~ eva_loacl_z + pollut_prese + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
+
+lm_local2efficacyIn <- lm(efficacyIn ~ eva_loacl_z + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
+
+lm_local_total_In <- lm(action ~ eva_loacl_z + efficacyIn + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
+
+
+lm_local2efficacyEx <- lm(efficacyEx ~ eva_loacl_z + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
+
+lm_local_total_Ex <- lm(action ~ eva_loacl_z + efficacyEx + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
+
+lm_local2res <- lm(res_classr ~ eva_loacl_z + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021)
+
+lm_local_total_res <- lm(action ~ eva_loacl_z + res_classr + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
+
+lm_local2care <- lm(enCare ~ eva_loacl_z + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
+
+lm_local_total_care <- lm(action ~ eva_loacl_z + enCare + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
+
+lm_local_total<- lm(action ~ eva_loacl_z + efficacyIn + efficacyEx + res_classr + enCare + pollut_prese + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
+
+
+mlist_mediator_local <- list(
+  "内部效能感" = lm_local2efficacyIn,
+  "外部效能感" = lm_local2efficacyEx,
+  "责任归因" = lm_local2res,
+  "环境关注度" = lm_local2care,
+  "环境感知" = lm_local2perse
+)
+
+modelsummary(mlist_mediator_local,
+             stars = TRUE,
+             coef_omit = "(Intercept)",
+             coef_rename = cm)
+```
+
+
+## local total effect2action
+
+```{r}
+
+mlist_totla_local <- list(
+  "直接效应" = lm_local2action,
+  "内部效能感" = lm_local_total_In,
+  "外部效能感" = lm_local_total_Ex,
+  "责任归因" = lm_local_total_res,
+  "环境关注度" = lm_local_total_care,
+  "环境感知" = lm_local_total_per,
+  "总模型" = lm_local_total
+)
+
+modelsummary(mlist_totla_local,
+             stars = TRUE,
+             coef_omit = "(Intercept)",
+             coef_rename = cm)
+```
+
+
+## local2participate
+
+```{r}
+glm_local2participate <- glm(participate ~ eva_loacl_z + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+
+
+glm_local_total_care <- glm(participate ~ eva_loacl_z + enCare + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+
+glm_local_total_In <- glm(participate ~ eva_loacl_z + efficacyIn + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+
+glm_local_total_Ex <- glm(participate ~ eva_loacl_z + efficacyEx + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+
+glm_local_total_res <- glm(participate ~ eva_loacl_z + res_classr + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+
+glm_local_total_pre <- glm(participate ~ eva_loacl_z + pollut_prese + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+
+glm_local_total <- glm(participate ~ eva_loacl_z + pollut_prese  + efficacyIn + efficacyEx + res_classr + enCare + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+
+
+mlist_total_local_participate <-  list(
+  "直接效应" = glm_local2participate,
+  "内部效能感" = glm_local_total_In,
+  "外部效能感" = glm_local_total_Ex,
+  "责任感归因" = glm_local_total_res,
+  "环境感知" = glm_local_total_pre,
+  "环境关注度" = glm_local_total_care,
+  "总模型" = glm_local_total
+)
+
+modelsummary(mlist_total_local_participate,
+             stars = TRUE,
+             coef_rename = cm)
+
+```
+
+
+
+### local
+
+```{r}
+par(family = "Stkaiti")
+fig1 <- dwplot(lm_local2action) %>% 
+    relabel_predictors(c(
+        eva_loacl_z = "对地方政府的评价",
+        media = "媒体使用",
+        age = "年龄",
+        female = "性别",
+        party = "党派",
+        edu = "受教育程度",
+        socailLevel_now = "社会经济地位",
+        imcomePer_level = "个人收入",
+        race = "民族",
+        rural = "城镇户口",
+        health = "健康状况",
+        marriage = "婚姻状况")) +
+  geom_vline(xintercept = 0, colour = "grey60", linetype = 2) +
+  theme_bw(base_size = 4) + 
+  xlab("相关系数") + 
+  ylab("") +
+  ggtitle("地方政府评价对垃圾分类的影响") + 
+  theme_set(theme_gray(base_family = "STKaiti")) +
+  labs(caption = "来源：2021年中国社会综合调查。") +
+  theme(legend.position = "none") +
+    scale_colour_grey(
+        start = .3,
+        end = .7)
+fig1
+```
+
+
+
+## cen mediation effect
+
+```{r}
+glm_cen2participate <- glm(participate ~ eva_central_z + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+
+lm_cen2care <- lm(enCare ~ eva_central_z + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021)
+
+glm_cen_total_care <- glm(participate ~ eva_central_z + enCare + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+
+lm_cen2efficacyIn <- lm(efficacyIn ~ eva_central_z + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021)
+
+glm_cen_total_In <- glm(participate ~ eva_central_z + efficacyIn + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+
+lm_cen2efficacyEx <- lm(efficacyEx ~ eva_central_z + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage,data = cgss2021)
+
+glm_cen_total_Ex <- glm(participate ~ eva_central_z + efficacyEx + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+
+lm_cen2res <- lm(res_classr ~ eva_central_z + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021)
+
+glm_cen_total_res <- glm(participate ~ eva_central_z + res_classr + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+
+lm_cen2pre <- lm(pollut_prese ~ eva_central_z + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021)
+
+glm_cen_total_pre <- glm(participate ~ eva_central_z + pollut_prese + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+
+glm_cen_total <- glm(participate ~ eva_central_z + pollut_prese  + efficacyIn + efficacyEx + res_classr + enCare + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+
+
+mlist_mediator_cen <- list(
+  "内部效能感" = lm_cen2efficacyIn,
+  "外部效能感" = lm_cen2efficacyEx,
+  "责任感归因" = lm_cen2res,
+  "环境感知" = lm_cen2pre,
+  "环境关注度" = lm_cen2care
+)
+
+modelsummary(mlist_mediator_cen,
+             stars = TRUE,
+             coef_rename = cm)
+```
+
+
+## cen total effect
+
+```{r}
+mlist_total_cen <- list(
+  "直接效应" = glm_cen2participate,
+  "内部效能感" = glm_cen_total_In,
+  "外部效能感" = glm_cen_total_Ex,
+  "责任感归因" = glm_cen_total_res,
+  "环境感知" = glm_cen_total_pre,
+  "环境关注度" = glm_cen_total_care,
+  "总模型" = glm_cen_total
+)
+
+modelsummary(mlist_total_cen,
+             stars = TRUE,
+             coef_omit = "(Intercept)",
+             coef_rename = cm)
+
+```
+
+
+## plot
+
+### central
+
+```{r}
+fig2 <- dwplot(glm_cen2participate) %>% 
+    relabel_predictors(c(
+        eva_central_z = "对中央政府的评价",
+        media = "媒体使用",
+        age = "年龄",
+        female = "性别",
+        party = "党派",
+        edu = "受教育程度",
+        socailLevel_now = "社会经济地位",
+        imcomePer_level = "个人收入",
+        race = "民族",
+        rural = "城镇户口",
+        health = "健康状况",
+        marriage = "婚姻状况")) +
+  geom_vline(xintercept = 0, colour = "grey60", linetype = 2) +
+  theme_bw(base_size = 4) + 
+  xlab("相关系数") + 
+  ylab("") +
+  ggtitle("中央政府评价对环境抗争行为的影响") + 
+  theme_set(theme_gray(base_family = "STKaiti")) +
+  labs(caption = "来源：2021年中国社会综合调查。") +
+  theme(legend.position = "none") +
+    scale_colour_grey(
+        start = .3,
+        end = .7)
+fig2
+```
+
+
+
+
+## mediation effect
+### 
+
+```{r acme_media}
+med <- mediation::mediate(
+  model.m = lm_cen2care,
+  model.y = glm_cen_total,
+  treat = "eva_central_z",
+  mediator = "enCare",
+  sims = 1000,
+  #robustSE = TRUE,
+  dropobs = TRUE)
+# summary(med)
+plot(med)
+## sensetive analysis
+# sens_out <- mediation::medsens(med,rho.by = 0.1,effect.type = "indirect",sims = 10)
+# summary(sens_out)
+# plot(sens_out)
+```
+
+
+
+:::{#imp-other .callout-important collpase="true"}
+1. 调节效应：
+  - 知识(know)/责任感(classr)/效能感(efficacy)对抗争毫无影响,对垃圾分类也是。
+  - 责任感(class)/内外部部效能感(efficacyIn/Ex)对垃圾不显著,对环境抗争也是。
+  
+2. 中介效应:
+  - 地方政府 to 垃圾分类:
+    - 责任感(classr):总效应和中介效应都显著。
+    - 内部效能感(efficacyIn/Ex):更换变量后，内外部效能感的总效应和中介效应都显著。
+    - 外部部效能感：均显著。
+    - 环境关注：总效应和中介效应均明显。
+    
+  - 中央政府 to 环境抗争:
+    - protest为因变量：
+      - 内外部部效能感(efficacyIn/Ex):内部效能感中介效应显著,但总效应不显著，外部效能感都不显著。
+      - 责任感：classr中介效应显著，总效应不显著。res_alleviate 缓解负责任中介效应显著，但总效应不显著。
+      - 媒介使用：传统媒体总效应显著，但中介不显著。互联网使用频率和信息来源都不显著。
+    - participate为因变量：
+      - 内部效能感：总效应和中介效应显著。
+      - 外部效能感：中介效应不显著，总效应中中介变量不显著。
+      - 责任感：classr中介效应显著和总效应都显著，class总效应中中介变量不显著。
+      - 环境关注：中介效应明显，总效应中自变量不显著，中介效应显著。
+      
+综上所述：地方政府对垃圾分类主要是通过内部效能感和环境关注度产生影响。中央政府对环境行为主要是通过内部效能感、责任归因以及环境关注度产生影响；外部效能感均不显著。这结果是将incomePer变为numeric得到的，如果变为order，结果是不是不一样。
+:::
+
+
