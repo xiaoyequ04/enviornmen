@@ -32,13 +32,182 @@ p_load("rio",
        "bruceR",
        "easystats",
        "dotwhisker",
-       "DiagrammeR")
+       "DiagrammeR",
+       "purrr")
+
+cgss2021 <- readRDS("../data/cgss2021.rds")
 ```
 
-#dataLoda
+# regression
 ```{r}
-#| label: dataLoda
-cgss2021 <- readRDS("../data/cgss2021.rds")
+#| label: regression
+cm <-c(
+  eva_local_z = "对地方政府的评价",
+  eva_central_z = "对中央政府的评价",
+  efficacyIn = "内部环境效能感",
+  efficacyEx = "外部环境效能感",
+  res_classr = "责任归因",
+  pollut_perse = "环境感知度",
+  enCare = "环境关注度",
+  efficacyIn_std = "内部环境效能感(标准化)",
+  res_classr_std = "责任归因(标准化)",
+  pollut_perse_std = "环境感知度(标准化)",
+  enCare_std = "环境关注度(标准化)",
+  age = "年龄",
+  female = "性别",
+  party = "党派",
+  edu = "受教育程度",
+  socailLevel_now = "社会经济地位",
+  imcomePer_level = "个人收入",
+  race = "民族",
+  rural = "城镇户口",
+  health = "健康状况",
+  marriage = "婚姻状况",
+  media = "媒介使用",
+  trustSystem_z = "系统信任"
+)
+
+ls_iv <- c("eva_central_z","eva_local_z")
+ls_med <- c("efficacyIn_std",
+            "enCare_std",
+            "res_classr_std",
+            "pollut_perse_std")
+ls_ov <- c("action","participate")
+ls_cv <-
+    c(
+        "edu",
+        "media",
+        "age",
+        "female",
+        "socailLevel_now",
+        "imcomePer_level",
+        "party",
+        "rural",
+        "health",
+        "race"
+    )
+
+```
+
+# directEffcet
+```{r}
+#| label: directeffect
+ls_direct_parti <- paste(ls_cv,collapse = " + ") %>%
+  paste0("participate ~ ",ls_iv," + ",.)
+
+glm_direct_parti <- map(ls_direct_parti, ~ glm(.,data = cgss2021,family = binomial))
+
+names(glm_direct_parti) <- c("环境行为","环境行为")
+
+modelsummary(glm_direct_parti,
+             stars = TRUE,
+             coef_omit = "(Intercept)",
+             coef_rename = cm)
+
+fig1 <- dwplot(glm_direct_parti[[1]]) %>% 
+    relabel_predictors(c(
+        eva_central_z = "对中央政府的评价",
+        # eva_local_z = "对地方政府的评价",
+        media = "媒体使用",
+        age = "年龄",
+        female = "性别",
+        party = "党派",
+        edu = "受教育程度",
+        socailLevel_now = "社会经济地位",
+        imcomePer_level = "个人收入",
+        race = "民族",
+        rural = "城镇户口",
+        health = "健康状况",
+        marriage = "婚姻状况")) +
+  geom_vline(xintercept = 0, colour = "grey60", linetype = 2) +
+  theme_bw(base_size = 4) + 
+  xlab("相关系数") + 
+  ylab("") +
+  ggtitle("中央政府评价对环境行为的影响") + 
+  theme_set(theme_gray(base_family = "STKaiti")) +
+  labs(caption = "来源：2021年中国社会综合调查。") +
+  theme(legend.position = "none") +
+    scale_colour_grey(
+        start = .3,
+        end = .7)
+fig1
+
+```
+
+# medEffect
+
+## cen2med
+```{r}
+#| label: cen2med
+lm_med_cen <- paste(ls_cv,collapse = " + ") %>%
+  paste0(ls_med,"~ eva_central_z + ",.)
+
+lm_cen2med <- map(lm_med_cen,~ lm(.,data = cgss2021))
+names(lm_cen2med) <- c("环境效能感","环境关注度","责任归因","环境感知度")
+
+modelsummary(lm_cen2med,
+             stars = TRUE,
+             coef_omit = "(Intercept)",
+             coef_rename = cm)
+```
+
+## local2med
+```{r}
+#| label: local2med
+lm_med_local <- paste(ls_cv,collapse = " + ") %>%
+  paste0(ls_med," ~ eva_local_z + ",.)
+
+lm_local2med <- map(lm_med_local,~ lm(.,data = cgss2021))
+
+names(lm_local2med) <-  c("环境效能感","环境关注度","责任归因","环境感知度")
+
+modelsummary(lm_local2med,
+             stars = TRUE,
+             coef_omit = "(Intercept)",
+             coef_rename = cm)
+```
+
+
+
+# totalEffect
+## cen2parti
+```{r}
+#| label: cen2parti
+glm_cen_total <- paste(ls_cv,collapse = " + ") %>%
+  paste0("participate"," ~ eva_central_z + ","efficacyIn_std + ", "enCare_std + ","res_classr_std + ","pollut_perse_std + ",.)
+
+glm_cen_total <- paste(ls_cv,collapse = " + ") %>%
+  paste0("participate"," ~ eva_central_z + ",
+         paste(ls_med,collapse = " + ")," + ",
+         .)
+glm_cen2parti_total <- map(glm_cen_total,~ glm(.,family = binomial,data = cgss2021))
+
+names(glm_cen2parti_total) <- c("总效应")
+
+modelsummary(glm_cen2parti_total,
+             stars = TRUE,
+             coef_omit = "(Intercept)",
+             coef_rename = cm)
+```
+
+# mediation analysis
+```{r}
+#| label: mediation analysis
+med_central_parti <- map2(
+  lm_cen2med,
+  ls_med,
+  ~ mediation::mediate(
+    model.y = glm_cen2parti_total[[1]],
+    model.m = .x,
+    treat = "eva_central_z",
+    mediator = .y,
+    boot = TRUE,
+    sims = 1000,
+    robustSE = TRUE, 
+    dropobs = TRUE
+  )
+)
+
 
 ```
 

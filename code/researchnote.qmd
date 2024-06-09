@@ -850,6 +850,7 @@ plot_mediation_cen2parti
 
 ```{r}
 #| label: list-variable
+#| eval: false
 cgss2021 <- cgss2021 %>%
   mutate(
     enCare_std = scales::rescale(as.numeric(enCare),to = c(0,1)),
