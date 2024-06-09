@@ -1,0 +1,44 @@
+---
+title: "dataClean"
+format: html
+editor: visual
+execute:
+  echo: false
+author: 
+  - name: 温莹莹
+    affiliation: 
+      - 中国社会科学院大学
+  - name: 朱萌
+    corresponding: true
+    affiliation: 
+      - 清华大学政治学系
+  - name: 张亮
+    affiliation: 
+      - 中国社会科学院大学
+---
+
+```{r setup,include = FALSE,echo=FALSE}
+set.seed(0609)
+options (warn = -1)
+# packbirth loading
+library(pacman)
+p_load("rio",
+       "here",
+       "scales",
+       "car",
+       "haven",
+       "MASS",
+       "modelsummary",
+       "bruceR",
+       "easystats",
+       "dotwhisker",
+       "DiagrammeR")
+```
+
+#dataLoda
+```{r}
+#| label: dataLoda
+cgss2021 <- readRDS("../data/cgss2021.rds")
+
+```
+

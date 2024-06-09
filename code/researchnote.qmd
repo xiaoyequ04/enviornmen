@@ -141,10 +141,11 @@ cgss2021$efficacyEx <- cgss2021$P12_5
 ```
 
 ## Envoirnment persetive
-:::{.callout-note collapse="true"}
-下面是环境感知，主要是问题为“.以下是各种类型的环境问题，您觉得它们在您居住地区的严重程度是怎样的？”。选择了空气/水/土壤等。
-目前编码是得分越高越不严重。
+
+::: {.callout-note collapse="true"}
+下面是环境感知，主要是问题为".以下是各种类型的环境问题，您觉得它们在您居住地区的严重程度是怎样的？"。选择了空气/水/土壤等。 目前编码是得分越高越不严重。
 :::
+
 ```{r}
 cgss2021$pollutionChina <- Recode(cgss2021$H1,"98 = NA")
 cgss2021$pollut_air <-  Recode(cgss2021$H2_1,"c(7,98) = NA")
@@ -162,16 +163,26 @@ cgss2021$pollut_perse <- cgss2021 %>%
   rowMeans(na.rm = TRUE)
 ```
 
-
 ## responsibility
-:::{.callout-note collapse="true"}
+
+::: {.callout-note collapse="true"}
 以下问题为谁为环境问题负责：个人/政府/企业/公民团体。1代表政府
 :::
+
 ```{r}
 cgss2021$res_alleviate <- Recode(cgss2021$H9,"98 = NA")
 cgss2021$res_alleviater <- Recode(cgss2021$H9,"c(1,2,4) = 0; 3 = 1; 98 = NA")
 cgss2021$res_class <- Recode(cgss2021$H15,"5 = NA")
 cgss2021$res_classr <- Recode(cgss2021$H15,"c(1,2,4) = 0; 3 = 1; 5 = NA")
+
+cgss2021 <- cgss2021 %>%
+  mutate(
+    enCare_std = scales::rescale(as.numeric(enCare),to = c(0,1)),
+    efficacyIn_std = scales::rescale(efficacyIn,to = c(0,1)),
+    efficacyEx_std = scales::rescale(efficacyEx,to = c(0,1)),
+    pollut_perse_std = scales::rescale(pollut_perse,to = c(0,1)),
+    res_classr_std = scales::rescale(as.numeric(res_classr))
+  )
 ```
 
 # OV
@@ -216,18 +227,21 @@ cgss2021$petition <- cgss2021$H5a_12
 cgss2021$protest_total <- cgss2021 %>%
   dplyr::select(hood,workpalce,org,exprosure,news_unit,gover_loacl,gover_super,justi,district) %>%
   rowMeans(na.rm = TRUE)
-```
 
+
+saveRDS(cgss2021, "../data/cgss2021.rds")
+```
 
 # Regression
 
 ## Behavior_objective
 
 ### government2behavior
-:::{.callout-note collapse="true}
-1. inforSource：在以上媒体中，哪个是您最主要的信息来源？(互联网和手机)。如果结果不理想，是否可以变为只看互联网？——也不行
-2. mediaNew：互联网频率
-4. mediaTra：传统媒介使用频率
+
+::: {.callout-note collapse="\"true"}
+1.  inforSource：在以上媒体中，哪个是您最主要的信息来源？(互联网和手机)。如果结果不理想，是否可以变为只看互联网？------也不行
+2.  mediaNew：互联网频率
+3.  mediaTra：传统媒介使用频率
 :::
 
 ```{r}
@@ -256,43 +270,51 @@ cm <-c(
 
 ::: {#imp-mediation .callout-important}
 ## title = "中介效应"
+
 1.  地方政府：
-  - 垃圾分类：
-    - 新媒体使用(mediaNew)：直接效应显著，对地方政府信任程度越高，越容易参与垃圾分类；但新媒体使用(mediaNew)为的总效应正面影响;中介效应不明显。
-    - 互联网使用频率(internetR)：无显著性。
-  - 环境抗争：
-    - 新媒体使用(mediaNew)：总效应只达到90%的显著性。但中介效应分析不显著，且为负面。
-    - 互联网使用频率(internetR)：无显著性
+
+-   垃圾分类：
+    -   新媒体使用(mediaNew)：直接效应显著，对地方政府信任程度越高，越容易参与垃圾分类；但新媒体使用(mediaNew)为的总效应正面影响;中介效应不明显。
+    -   互联网使用频率(internetR)：无显著性。
+-   环境抗争：
+    -   新媒体使用(mediaNew)：总效应只达到90%的显著性。但中介效应分析不显著，且为负面。
+    -   互联网使用频率(internetR)：无显著性
+
 2.  中央政府：
-  - 垃圾分类：
-    - 新媒体使用(mediaNew):直接效应不显著;
-    - 互联网使用频率(internetR)：无显著性
-  - 环境抗争：如果用新媒体使用(mediaNew)为中介变量，总负面效应只达到90%的显著性。
+
+-   垃圾分类：
+    -   新媒体使用(mediaNew):直接效应不显著;
+    -   互联网使用频率(internetR)：无显著性
+-   环境抗争：如果用新媒体使用(mediaNew)为中介变量，总负面效应只达到90%的显著性。
 :::
 
 ::: {#imp-mediator .callout-important}
 ## title = "调节效应"
+
 1.  地方政府：
-  - 垃圾分类：
-    - 新媒体使用(mediaNew):直接效应显著,调节效应加进去后结果不显著了。
-    - 互联网使用频率(internetR):直接效应显著,调节效应加进去后结果不显著了。
-    - 互联网作为主要信息来源(inforSource)：直接效应显著,调节效应加进去后结果不显著了。
-  - 环境抗争：
-    - 新媒体使用(mediaNew):直接效应不显著，但是新媒体使用加进去后，各自为负显著，交互项为正，这表明对地方政府评价越高，越使用新媒体越不容易参加环境抗争，但对地方政府评价一样的情况下使用新媒体越多更容易参与环境抗争。
-    - 互联网使用频率(internetR)：结果与新媒体使用一模一样！这貌似不符合理论假设？
-    - 互联网作为主要信息来源(inforSource)：无显著性。
+
+-   垃圾分类：
+    -   新媒体使用(mediaNew):直接效应显著,调节效应加进去后结果不显著了。
+    -   互联网使用频率(internetR):直接效应显著,调节效应加进去后结果不显著了。
+    -   互联网作为主要信息来源(inforSource)：直接效应显著,调节效应加进去后结果不显著了。
+-   环境抗争：
+    -   新媒体使用(mediaNew):直接效应不显著，但是新媒体使用加进去后，各自为负显著，交互项为正，这表明对地方政府评价越高，越使用新媒体越不容易参加环境抗争，但对地方政府评价一样的情况下使用新媒体越多更容易参与环境抗争。
+    -   互联网使用频率(internetR)：结果与新媒体使用一模一样！这貌似不符合理论假设？
+    -   互联网作为主要信息来源(inforSource)：无显著性。
+
 2.  中央政府：
-  - 垃圾分类：
-    - 新媒体使用(mediaNew)：直接效应和调节效应都不显著。
-    - 互联网使用频率(internetR)：直接效应和调节效应不显著。
-    - 互联网作为主要信息来源(inforSource)：无显著性。
-  - 环境抗争：
-    - 新媒体使用(mediaNew)：
-    - 互联网使用频率(internetR)的调节效应加进去后都不显著。
-    - 互联网作为主要信息来源(inforSource)：无显著性。
+
+-   垃圾分类：
+    -   新媒体使用(mediaNew)：直接效应和调节效应都不显著。
+    -   互联网使用频率(internetR)：直接效应和调节效应不显著。
+    -   互联网作为主要信息来源(inforSource)：无显著性。
+-   环境抗争：
+    -   新媒体使用(mediaNew)：
+    -   互联网使用频率(internetR)的调节效应加进去后都不显著。
+    -   互联网作为主要信息来源(inforSource)：无显著性。
 :::
 
-:::{.callout-tip}
+::: callout-tip
 综上所述：调节效应似乎也不是很好？看看其他变量,见 @imp-other部分。
 :::
 
@@ -321,7 +343,9 @@ modelsummary(mlist_sys2behavior,
 :::
 
 # Meidation analysis
+
 ## local mediation effect
+
 ```{r}
 #| lable: mediation analysis
 
@@ -366,6 +390,7 @@ modelsummary(mlist_mediator_local,
 ```
 
 ## local total effect2action
+
 ```{r}
 
 mlist_totla_local <- list(
@@ -385,6 +410,7 @@ modelsummary(mlist_totla_local,
 ```
 
 ## local2participate
+
 ```{r}
 glm_local2participate <- glm(participate ~ eva_local_z + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
 
@@ -418,8 +444,8 @@ modelsummary(mlist_total_local_participate,
 
 ```
 
-
 ### local
+
 ```{r}
 par(family = "Stkaiti")
 fig1 <- dwplot(lm_local2action) %>% 
@@ -450,8 +476,8 @@ fig1 <- dwplot(lm_local2action) %>%
 fig1
 ```
 
-
 ## cen mediation effect
+
 ```{r}
 glm_cen2participate <- glm(participate ~ eva_central_z + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
 
@@ -492,6 +518,7 @@ modelsummary(mlist_mediator_cen,
 ```
 
 ## cen total effect
+
 ```{r}
 mlist_total_cen <- list(
   "直接效应" = glm_cen2participate,
@@ -513,6 +540,7 @@ modelsummary(mlist_total_cen,
 ## plot
 
 ### central
+
 ```{r}
 fig2 <- dwplot(glm_cen2participate) %>% 
     relabel_predictors(c(
@@ -542,10 +570,10 @@ fig2 <- dwplot(glm_cen2participate) %>%
 fig2
 ```
 
-
-
 ## mediation effect
+
 ### 
+
 ```{r acme_media}
 med_cen_care_parti <- mediation::mediate(
   model.m = lm_cen2care,
@@ -738,12 +766,12 @@ df_mediation_cen_parti <- mediation_cen_parti %>%
 df_mediation_cen_parti <- df_mediation_cen_parti %>%
   group_by(effect) %>%
   mutate(estimate_abs = ifelse(p.value < 0.05, abs(estimate),0),
-    total = sum(estimate_abs)),
-    propAceB = estimate_abs/total,
-    propAceB = scales::percent(propAceB),
-    prop = ifelse(sig, propAceB, ""),
-    arrow = ifelse(sig, propAceB, ""),
-    lineStyle = ifelse(sig, "solid", "dashed")
+         total = sum(estimate_abs),
+         propAceB = estimate_abs/total,
+         propAceB = scales::percent(propAceB),
+         prop = ifelse(sig, propAceB, ""),
+         arrow = ifelse(sig, propAceB, ""),
+         lineStyle = ifelse(sig, "solid", "dashed")
  )
 
 plot_mediation_cen2parti <- grViz(diagram = 
@@ -791,35 +819,35 @@ plot_mediation_cen2parti
 # plot(sens_out)
 ```
 
+::: {#imp-other .callout-important collpase="true"}
+1.  调节效应：
 
-:::{#imp-other .callout-important collpase="true"}
-1. 调节效应：
-  - 知识(know)/责任感(classr)/效能感(efficacy)对抗争毫无影响,对垃圾分类也是。
-  - 责任感(class)/内外部部效能感(efficacyIn/Ex)对垃圾不显著,对环境抗争也是。
-  
-2. 中介效应:
-  - 地方政府 to 垃圾分类:
-    - 责任感(classr):总效应和中介效应都显著。
-    - 内部效能感(efficacyIn/Ex):更换变量后，内外部效能感的总效应和中介效应都显著。
-    - 外部部效能感：均显著。
-    - 环境关注：总效应和中介效应均明显。
-    
-  - 中央政府 to 环境抗争:
-    - protest为因变量：
-      - 内外部部效能感(efficacyIn/Ex):内部效能感中介效应显著,但总效应不显著，外部效能感都不显著。
-      - 责任感：classr中介效应显著，总效应不显著。res_alleviate 缓解负责任中介效应显著，但总效应不显著。
-      - 媒介使用：传统媒体总效应显著，但中介不显著。互联网使用频率和信息来源都不显著。
-    - participate为因变量：
-      - 内部效能感：总效应和中介效应显著。
-      - 外部效能感：中介效应不显著，总效应中中介变量不显著。
-      - 责任感：classr中介效应显著和总效应都显著，class总效应中中介变量不显著。
-      - 环境关注：中介效应明显，总效应中自变量不显著，中介效应显著。
-      
-综上所述：地方政府对垃圾分类主要是通过内部效能感和环境关注度产生影响。中央政府对环境行为主要是通过内部效能感、责任归因以及环境关注度产生影响；外部效能感均不显著。这结果是将incomePer变为numeric得到的，如果变为order，结果是不是不一样。
-另外，更换了环境抗争行为后因变量后，地方政府也和中央政府有相同的影响。
+-   知识(know)/责任感(classr)/效能感(efficacy)对抗争毫无影响,对垃圾分类也是。
+-   责任感(class)/内外部部效能感(efficacyIn/Ex)对垃圾不显著,对环境抗争也是。
+
+2.  中介效应:
+
+-   地方政府 to 垃圾分类:
+    -   责任感(classr):总效应和中介效应都显著。
+    -   内部效能感(efficacyIn/Ex):更换变量后，内外部效能感的总效应和中介效应都显著。
+    -   外部部效能感：均显著。
+    -   环境关注：总效应和中介效应均明显。
+-   中央政府 to 环境抗争:
+    -   protest为因变量：
+        -   内外部部效能感(efficacyIn/Ex):内部效能感中介效应显著,但总效应不显著，外部效能感都不显著。
+        -   责任感：classr中介效应显著，总效应不显著。res_alleviate 缓解负责任中介效应显著，但总效应不显著。
+        -   媒介使用：传统媒体总效应显著，但中介不显著。互联网使用频率和信息来源都不显著。
+    -   participate为因变量：
+        -   内部效能感：总效应和中介效应显著。
+        -   外部效能感：中介效应不显著，总效应中中介变量不显著。
+        -   责任感：classr中介效应显著和总效应都显著，class总效应中中介变量不显著。
+        -   环境关注：中介效应明显，总效应中自变量不显著，中介效应显著。
+
+综上所述：地方政府对垃圾分类主要是通过内部效能感和环境关注度产生影响。中央政府对环境行为主要是通过内部效能感、责任归因以及环境关注度产生影响；外部效能感均不显著。这结果是将incomePer变为numeric得到的，如果变为order，结果是不是不一样。 另外，更换了环境抗争行为后因变量后，地方政府也和中央政府有相同的影响。
 :::
 
 # codeClean
+
 ```{r}
 #| label: list-variable
 cgss2021 <- cgss2021 %>%
@@ -862,9 +890,6 @@ ls_model_parti <- paste(ls_ctrl, collapse = " + ") %>%
 lm_cen2parti <- glm(ls_model_parti,data = cgss2021,family = binomial)
 ```
 
-:::{.callout-warning collapse="true"}
-中介效应检验的时候，每个中介分别检验，即m～x的回归中不加入其他中介；
-总效应检验的时候，所有中介都放进去。其中所有中介都标准化，这样可以做对比。
+::: {.callout-warning collapse="true"}
+中介效应检验的时候，每个中介分别检验，即m～x的回归中不加入其他中介； 总效应检验的时候，所有中介都放进去。其中所有中介都标准化，这样可以做对比。
 :::
-
-
