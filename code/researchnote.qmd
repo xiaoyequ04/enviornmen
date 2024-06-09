@@ -514,6 +514,7 @@ mlist_mediator_cen <- list(
 
 modelsummary(mlist_mediator_cen,
              stars = TRUE,
+             coef_omit = "(Intercept)",
              coef_rename = cm)
 ```
 

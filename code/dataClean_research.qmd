@@ -36,6 +36,7 @@ p_load("rio",
        "purrr")
 
 cgss2021 <- readRDS("../data/cgss2021.rds")
+cgss2021$participate <- as.factor(cgss2021$participate)
 ```
 
 # regression
@@ -68,11 +69,22 @@ cm <-c(
 )
 
 ls_iv <- c("eva_central_z","eva_local_z")
-ls_med <- c("efficacyIn_std",
-            "enCare_std",
-            "res_classr_std",
-            "pollut_perse_std")
+
+ls_med <- c(
+  "efficacyIn",
+  "enCare",
+  "res_classr",
+  "pollut_perse"
+)
+
+ls_med_std <- c(
+  "efficacyIn_std",
+  "enCare_std",
+  "res_classr_std",
+  "pollut_perse_std")
+
 ls_ov <- c("action","participate")
+
 ls_cv <-
     c(
         "edu",
@@ -140,9 +152,10 @@ fig1
 ```{r}
 #| label: cen2med
 lm_med_cen <- paste(ls_cv,collapse = " + ") %>%
-  paste0(ls_med,"~ eva_central_z + ",.)
+  paste0(ls_med," ~ eva_central_z + ",.)
 
 lm_cen2med <- map(lm_med_cen,~ lm(.,data = cgss2021))
+
 names(lm_cen2med) <- c("环境效能感","环境关注度","责任归因","环境感知度")
 
 modelsummary(lm_cen2med,
@@ -174,12 +187,11 @@ modelsummary(lm_local2med,
 ```{r}
 #| label: cen2parti
 glm_cen_total <- paste(ls_cv,collapse = " + ") %>%
-  paste0("participate"," ~ eva_central_z + ","efficacyIn_std + ", "enCare_std + ","res_classr_std + ","pollut_perse_std + ",.)
-
-glm_cen_total <- paste(ls_cv,collapse = " + ") %>%
   paste0("participate"," ~ eva_central_z + ",
-         paste(ls_med,collapse = " + ")," + ",
+         paste(ls_med,collapse = " + "), 
+         " + ",
          .)
+
 glm_cen2parti_total <- map(glm_cen_total,~ glm(.,family = binomial,data = cgss2021))
 
 names(glm_cen2parti_total) <- c("总效应")
@@ -193,7 +205,16 @@ modelsummary(glm_cen2parti_total,
 # mediation analysis
 ```{r}
 #| label: mediation analysis
-med_central_parti <- map2(
+med_cen_care_parti <- mediation::mediate(
+  model.m = lm_cen2med[[1]],
+  model.y = glm_cen2parti_total[1],
+  treat = "eva_central_z",
+  mediator = "efficacyIn",
+  sims = 1000,
+  robustSE = TRUE,
+  dropobs = TRUE)
+
+result_mediationIn <- map2(
   lm_cen2med,
   ls_med,
   ~ mediation::mediate(
@@ -201,7 +222,7 @@ med_central_parti <- map2(
     model.m = .x,
     treat = "eva_central_z",
     mediator = .y,
-    boot = TRUE,
+    # boot = TRUE,
     sims = 1000,
     robustSE = TRUE, 
     dropobs = TRUE
@@ -210,4 +231,169 @@ med_central_parti <- map2(
 
 
 ```
+
+
+# code
+
+## Directeffect
+```{r}
+ls_direct_cen2parti <- paste(ls_cv,collapse = " + ") %>%
+  paste0("participate ~ ","eva_central_z +",.)
+glm_direct_cen2parti <- glm(ls_direct_cen2parti,family = binomial,data = cgss2021)
+
+ls_direct_local2parti <- paste(ls_cv,collapse = " + ") %>%
+  paste0("participate ~ ","eva_local_z +",.)
+glm_direct_local2parti <- glm(ls_direct_local2parti,family = binomial,data = cgss2021)
+
+mlist_direct <- list(
+  "环境行为(中央)" = glm_direct_cen2parti,
+  "环境行为(地方)" = glm_direct_local2parti
+)
+
+modelsummary(mlist_direct,
+             stars = TRUE,
+             coef_omit = "(Intercept)",
+             coef_rename = cm)
+
+```
+
+## Mediaeffct
+
+### cen2med
+```{r}
+med_cen2In <- paste(ls_cv,collapse = " + ") %>%
+  paste0("efficacyIn"," ~ eva_central_z + ",.)
+lm_med_cen2In <- lm(med_cen2In,data = cgss2021)
+
+med_cen2res <- paste(ls_cv,collapse = " + ") %>%
+  paste0("res_classr"," ~ eva_central_z + ",.)
+lm_med_cen2res <- lm(med_cen2res,data = cgss2021)
+
+med_cen2per <- paste(ls_cv,collapse = " + ") %>%
+  paste0("pollut_perse"," ~ eva_central_z + ",.)
+lm_med_cen2per <- lm(med_cen2per,data = cgss2021)
+
+med_cen2care <- paste(ls_cv,collapse = " + ") %>%
+  paste0("enCare"," ~ eva_central_z + ",.)
+lm_med_cen2care <- lm(med_cen2care,data = cgss2021)
+
+mlist_cen2med <- list(
+  "内部效能感" = lm_med_cen2In,
+  "责任感归因" = lm_med_cen2res,
+  "环境感知" = lm_med_cen2per,
+  "环境关注度" = lm_med_cen2care
+)
+
+modelsummary(mlist_cen2med,
+             stars = TRUE,
+             coef_omit = "(Intercept)",
+             coef_rename = cm)
+
+```
+
+### local2med
+```{r}
+med_local2In <- paste(ls_cv,collapse = " + ") %>%
+  paste0("efficacyIn"," ~ eva_local_z + ",.)
+lm_med_local2In <- lm(med_local2In,data = cgss2021)
+
+med_local2res <- paste(ls_cv,collapse = " + ") %>%
+  paste0("res_classr"," ~ eva_local_z + ",.)
+lm_med_local2res <- lm(med_local2res,data = cgss2021)
+
+med_local2per <- paste(ls_cv,collapse = " + ") %>%
+  paste0("pollut_perse"," ~ eva_local_z + ",.)
+lm_med_local2per <- lm(med_local2per,data = cgss2021)
+
+med_local2care <- paste(ls_cv,collapse = " + ") %>%
+  paste0("enCare"," ~ eva_local_z + ",.)
+lm_med_local2care <- lm(med_local2care,data = cgss2021)
+
+mlist_local2med <- list(
+  "内部效能感" = lm_med_local2In,
+  "责任感归因" = lm_med_local2res,
+  "环境感知" = lm_med_local2per,
+  "环境关注度" = lm_med_local2care
+)
+
+modelsummary(mlist_local2med,
+             stars = TRUE,
+             coef_omit = "(Intercept)",
+             coef_rename = cm)
+
+```
+
+## totaleffect
+```{r}
+ls_total_local2parti <- paste(ls_cv,collapse = " + ") %>%
+  paste0("participate"," ~ eva_local_z + ",
+         paste(ls_med,collapse = " + "),
+         " + ",
+         .)
+glm_total_local2parti <- glm(ls_total_local2parti,family = binomial,data = cgss2021)
+
+ls_total_cen2parti <- paste(ls_cv,collapse = " + ") %>%
+  paste0("participate"," ~ eva_central_z + ",
+         paste(ls_med,collapse = " + "),
+         " + ",
+         .)
+glm_total_cen2parti <- glm(ls_total_cen2parti,family = binomial,data = cgss2021)
+
+mlist_total <- list(
+  "总效应(中央)" = glm_total_cen2parti,
+  "总效应(地方)" = glm_total_local2parti
+)
+
+modelsummary(mlist_total,
+             stars = TRUE,
+             coef_omit = "(Intercept)",
+             coef_rename = cm)
+```
+
+## median analysis
+```{r}
+med_cen_care_parti <- mediation::mediate(
+  model.m = lm_med_cen2care,
+  model.y = glm_total_cen2parti,
+  treat = "eva_central_z",
+  mediator = "enCare",
+  sims = 1000,
+  robustSE = TRUE,
+  dropobs = TRUE)
+
+
+result_cen2par <- map2(
+  mlist_cen2med,
+  ls_med,
+  ~ mediation::mediate(
+    model.y = mlist_total[[1]],
+    model.m = .x,
+    treat = "eva_central_z",
+    mediator = .y,
+    #boot = TRUE,
+    sims = 1000,
+    robustSE = TRUE, 
+    dropobs = TRUE
+  )
+)
+
+result_local2par <- map2(
+  mlist_local2med,
+  ls_med,
+  ~ mediation::mediate(
+    model.y = mlist_total[[2]],
+    model.m = .x,
+    treat = "eva_local_z",
+    mediator = .y,
+    #boot = TRUE,
+    sims = 1000,
+    robustSE = TRUE, 
+    dropobs = TRUE
+  )
+)
+```
+
+
+
+
 
