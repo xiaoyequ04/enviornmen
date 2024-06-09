@@ -31,7 +31,8 @@ p_load("rio",
        "modelsummary",
        "bruceR",
        "easystats",
-       "dotwhisker")
+       "dotwhisker",
+       "DiagrammeR")
 ```
 
 # dataLoda
@@ -106,8 +107,8 @@ cgss2021$inforSource <- Recode(cgss2021$A29,"1:4 = 0;5 = 1;6 = 0;98:99 = NA")
 
 ```{r}
 #| label: government
-cgss2021$eva_loacl <- Recode(cgss2021$H8,"98 = NA") 
-cgss2021$eva_loacl_z <- scales::rescale(as.numeric(cgss2021$eva_loacl),to = c(0,1))
+cgss2021$eva_local <- Recode(cgss2021$H8,"98 = NA") 
+cgss2021$eva_local_z <- scales::rescale(as.numeric(cgss2021$eva_local),to = c(0,1))
 cgss2021$eva_central <- Recode(cgss2021$H11,"98 = NA")
 cgss2021$eva_central_z <- scales::rescale(as.numeric(cgss2021$eva_central),to = c(0,1))
 ```
@@ -136,17 +137,13 @@ cgss2021$efficacyIn <- cgss2021 %>%
   dplyr::select(.,P12_1,P12_2) %>%
   rowMeans(na.rm = TRUE)
 
-cgss2021$efficacyEx <- cgss2021$P12_5 
-
-cgss2021$efficacy <- cgss2021 %>%
-  dplyr::select(.,P12_1,P12_2,P12_6,P12_4,P12_5,P12_7) %>%
-  rowMeans(na.rm = TRUE)
-  
+cgss2021$efficacyEx <- cgss2021$P12_5
 ```
 
 ## Envoirnment persetive
 :::{.callout-note collapse="true"}
 下面是环境感知，主要是问题为“.以下是各种类型的环境问题，您觉得它们在您居住地区的严重程度是怎样的？”。选择了空气/水/土壤等。
+目前编码是得分越高越不严重。
 :::
 ```{r}
 cgss2021$pollutionChina <- Recode(cgss2021$H1,"98 = NA")
@@ -160,7 +157,7 @@ cgss2021$pollut_life <- Recode(cgss2021$H2_6,"c(7,98) = NA")
 cgss2021$pollut_life <- 6 - cgss2021$pollut_life
 cgss2021$pollut_waste <- Recode(cgss2021$H2_14,"c(7,98) = NA") 
 cgss2021$pollut_waste <- 6 - cgss2021$pollut_waste
-cgss2021$pollut_prese <- cgss2021 %>%
+cgss2021$pollut_perse <- cgss2021 %>%
   dplyr::select(., pollut_air, pollut_water, pollut_industry,pollut_life,pollut_waste) %>%
   rowMeans(na.rm = TRUE)
 ```
@@ -168,7 +165,7 @@ cgss2021$pollut_prese <- cgss2021 %>%
 
 ## responsibility
 :::{.callout-note collapse="true"}
-以下问题为谁为环境问题负责：个人/政府/企业/公民团体。
+以下问题为谁为环境问题负责：个人/政府/企业/公民团体。1代表政府
 :::
 ```{r}
 cgss2021$res_alleviate <- Recode(cgss2021$H9,"98 = NA")
@@ -197,10 +194,6 @@ cgss2021$protest <- Recode(cgss2021$P21_3,"2 = 0")
 cgss2021$radical <- cgss2021 %>%
   select(.,sig,donate,protest) %>%
   rowMeans(na.rm = TRUE)
-
-
-cgss2021$solveAction  <- Recode(cgss2021$H5,"2:4 = 0")
-cgss2021$solveAction_level  <- Recode(cgss2021$H5,"c(2,4) = 0;3 = 1;1 = 2")
 ```
 
 ## protest
@@ -239,12 +232,12 @@ cgss2021$protest_total <- cgss2021 %>%
 
 ```{r}
 cm <-c(
-  eva_loacl_z = "对地方政府的评价",
+  eva_local_z = "对地方政府的评价",
   eva_central_z = "对中央政府的评价",
   efficacyIn = "内部环境效能感",
   efficacyEx = "外部环境效能感",
   res_classr = "责任归因",
-  pollut_prese = "环境感知度",
+  pollut_perse = "环境感知度",
   enCare = "环境关注度",
   age = "年龄",
   female = "性别",
@@ -306,13 +299,16 @@ cm <-c(
 ### systemtrust2behavior
 
 ```{r}
-lm_ac_sys <- lm(action ~ trust_system + age + female + edu + socailLevel_now + imcomePer_level + party + race + rural + health + marriage,data = cgss2021)
+lm_ac_sys <- lm(action ~ trust_system + age + female + edu + socailLevel_now + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021)
 
-lm_total_sys <- lm(protest_total ~ trust_system + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage,data = cgss2021)
+lm_total_sys <- lm(protest_total ~ trust_system + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021)
+
+lm_parti_sys <- lm(participate ~ trust_system + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021)
 
 mlist_sys2behavior <- list(
   "垃圾分类"= lm_ac_sys,
-  "环境抗争" = lm_total_sys
+  "环境抗争" = lm_total_sys,
+  "环境行动" = lm_parti_sys
 )
 
 modelsummary(mlist_sys2behavior,
@@ -321,7 +317,7 @@ modelsummary(mlist_sys2behavior,
 ```
 
 ::: {.callout-tip collapse="true"}
-1.  目前用媒体信任和人大信任来衡量系统信任或者整个问题来衡量，不管是trust_system还是trust_system_z,结果都不理想：与垃圾分类是负相关，对环境抗争没影响。
+1.  目前用媒体信任和人大信任来衡量系统信任或者整个问题来衡量，不管是trust_system还是trust_system_z,结果都不理想：与垃圾分类是负相关，对环境抗争和环保行为没影响。
 :::
 
 # Meidation analysis
@@ -329,30 +325,30 @@ modelsummary(mlist_sys2behavior,
 ```{r}
 #| lable: mediation analysis
 
-lm_local2action <- lm(action ~ eva_loacl_z + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
+lm_local2action <- lm(action ~ eva_local_z + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
 
-lm_local2perse <- lm(pollut_prese ~ eva_loacl_z + age + female + edu + socailLevel_now + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
+lm_local2perse <- lm(pollut_perse ~ eva_local_z + age + female + edu + socailLevel_now + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
 
-lm_local_total_per <- lm(action ~ eva_loacl_z + pollut_prese + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
+lm_local_total_per <- lm(action ~ eva_local_z + pollut_perse + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
 
-lm_local2efficacyIn <- lm(efficacyIn ~ eva_loacl_z + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
+lm_local2efficacyIn <- lm(efficacyIn ~ eva_local_z + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
 
-lm_local_total_In <- lm(action ~ eva_loacl_z + efficacyIn + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
+lm_local_total_In <- lm(action ~ eva_local_z + efficacyIn + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
 
 
-lm_local2efficacyEx <- lm(efficacyEx ~ eva_loacl_z + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
+lm_local2efficacyEx <- lm(efficacyEx ~ eva_local_z + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
 
-lm_local_total_Ex <- lm(action ~ eva_loacl_z + efficacyEx + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
+lm_local_total_Ex <- lm(action ~ eva_local_z + efficacyEx + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
 
-lm_local2res <- lm(res_classr ~ eva_loacl_z + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021)
+lm_local2res <- lm(res_classr ~ eva_local_z + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021)
 
-lm_local_total_res <- lm(action ~ eva_loacl_z + res_classr + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
+lm_local_total_res <- lm(action ~ eva_local_z + res_classr + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
 
-lm_local2care <- lm(enCare ~ eva_loacl_z + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
+lm_local2care <- lm(enCare ~ eva_local_z + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
 
-lm_local_total_care <- lm(action ~ eva_loacl_z + enCare + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
+lm_local_total_care <- lm(action ~ eva_local_z + enCare + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
 
-lm_local_total<- lm(action ~ eva_loacl_z + efficacyIn + efficacyEx + res_classr + enCare + pollut_prese + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
+lm_local_total<- lm(action ~ eva_local_z + efficacyIn + efficacyEx + res_classr + enCare + pollut_perse + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
 
 
 mlist_mediator_local <- list(
@@ -390,20 +386,20 @@ modelsummary(mlist_totla_local,
 
 ## local2participate
 ```{r}
-glm_local2participate <- glm(participate ~ eva_loacl_z + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+glm_local2participate <- glm(participate ~ eva_local_z + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
 
 
-glm_local_total_care <- glm(participate ~ eva_loacl_z + enCare + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+glm_local_total_care <- glm(participate ~ eva_local_z + enCare + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
 
-glm_local_total_In <- glm(participate ~ eva_loacl_z + efficacyIn + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+glm_local_total_In <- glm(participate ~ eva_local_z + efficacyIn + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
 
-glm_local_total_Ex <- glm(participate ~ eva_loacl_z + efficacyEx + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+glm_local_total_Ex <- glm(participate ~ eva_local_z + efficacyEx + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
 
-glm_local_total_res <- glm(participate ~ eva_loacl_z + res_classr + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+glm_local_total_res <- glm(participate ~ eva_local_z + res_classr + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
 
-glm_local_total_pre <- glm(participate ~ eva_loacl_z + pollut_prese + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+glm_local_total_per <- glm(participate ~ eva_local_z + pollut_perse + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
 
-glm_local_total <- glm(participate ~ eva_loacl_z + pollut_prese  + efficacyIn + efficacyEx + res_classr + enCare + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+glm_local_total <- glm(participate ~ eva_local_z + pollut_perse  + efficacyIn + efficacyEx + res_classr + enCare + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
 
 
 mlist_total_local_participate <-  list(
@@ -411,7 +407,7 @@ mlist_total_local_participate <-  list(
   "内部效能感" = glm_local_total_In,
   "外部效能感" = glm_local_total_Ex,
   "责任感归因" = glm_local_total_res,
-  "环境感知" = glm_local_total_pre,
+  "环境感知" = glm_local_total_per,
   "环境关注度" = glm_local_total_care,
   "总模型" = glm_local_total
 )
@@ -428,7 +424,7 @@ modelsummary(mlist_total_local_participate,
 par(family = "Stkaiti")
 fig1 <- dwplot(lm_local2action) %>% 
     relabel_predictors(c(
-        eva_loacl_z = "对地方政府的评价",
+        eva_local_z = "对地方政府的评价",
         media = "媒体使用",
         age = "年龄",
         female = "性别",
@@ -475,18 +471,18 @@ lm_cen2res <- lm(res_classr ~ eva_central_z + age + female + edu + socailLevel_n
 
 glm_cen_total_res <- glm(participate ~ eva_central_z + res_classr + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
 
-lm_cen2pre <- lm(pollut_prese ~ eva_central_z + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021)
+lm_cen2per <- lm(pollut_perse ~ eva_central_z + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021)
 
-glm_cen_total_pre <- glm(participate ~ eva_central_z + pollut_prese + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+glm_cen_total_per <- glm(participate ~ eva_central_z + pollut_perse + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
 
-glm_cen_total <- glm(participate ~ eva_central_z + pollut_prese  + efficacyIn + efficacyEx + res_classr + enCare + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
+glm_cen_total <- glm(participate ~ eva_central_z + pollut_perse  + efficacyIn + efficacyEx + res_classr + enCare + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
 
 
 mlist_mediator_cen <- list(
   "内部效能感" = lm_cen2efficacyIn,
   "外部效能感" = lm_cen2efficacyEx,
   "责任感归因" = lm_cen2res,
-  "环境感知" = lm_cen2pre,
+  "环境感知" = lm_cen2per,
   "环境关注度" = lm_cen2care
 )
 
@@ -502,7 +498,7 @@ mlist_total_cen <- list(
   "内部效能感" = glm_cen_total_In,
   "外部效能感" = glm_cen_total_Ex,
   "责任感归因" = glm_cen_total_res,
-  "环境感知" = glm_cen_total_pre,
+  "环境感知" = glm_cen_total_per,
   "环境关注度" = glm_cen_total_care,
   "总模型" = glm_cen_total
 )
@@ -551,16 +547,244 @@ fig2
 ## mediation effect
 ### 
 ```{r acme_media}
-med <- mediation::mediate(
+med_cen_care_parti <- mediation::mediate(
   model.m = lm_cen2care,
   model.y = glm_cen_total,
   treat = "eva_central_z",
   mediator = "enCare",
   sims = 1000,
-  #robustSE = TRUE,
+  robustSE = TRUE,
   dropobs = TRUE)
+
+med_cen_In_parti <- mediation::mediate(
+  model.m = lm_cen2efficacyIn,
+  model.y = glm_cen_total,
+  treat = "eva_central_z",
+  mediator = "efficacyIn",
+  sims = 1000,
+  robustSE = TRUE,
+  dropobs = TRUE)
+
+med_cen_per_parti <- mediation::mediate(
+  model.m = lm_cen2per,
+  model.y = glm_cen_total,
+  treat = "eva_central_z",
+  mediator = "pollut_perse",
+  sims = 1000,
+  robustSE = TRUE,
+  dropobs = TRUE)
+
+med_cen_res_parti <- mediation::mediate(
+  model.m = lm_cen2res,
+  model.y = glm_cen_total,
+  treat = "eva_central_z",
+  mediator = "res_classr",
+  sims = 1000,
+  robustSE = TRUE,
+  dropobs = TRUE)
+
+
+df_cen_care_parti <- tibble(
+  mediator = med_cen_care_parti$mediator,
+  effect = "aceB",
+  estimate = med_cen_care_parti$d.avg,
+  p.value = med_cen_care_parti$d.avg.p,
+  conf.low = med_cen_care_parti$d.avg.ci[1],
+  conf.high = med_cen_care_parti$d.avg.ci[2],
+  prop = scales::percent(med_cen_care_parti$n.avg)) %>%
+  bind_rows(
+    tibble(
+      mediator = med_cen_care_parti$mediator,
+      effect = "ade",
+      estimate = med_cen_care_parti$z.avg,
+      p.value = med_cen_care_parti$z.avg.p,
+      conf.low = med_cen_care_parti$z.avg.ci[1],
+      conf.high = med_cen_care_parti$z.avg.ci[2],
+      prop = "")
+      ) %>%
+  bind_rows(
+    tibble(
+      mediator = med_cen_care_parti$mediator,
+      effect = "total",
+      estimate = med_cen_care_parti$tau.coef,
+      p.value = med_cen_care_parti$tau.p,
+      conf.low = med_cen_care_parti$tau.ci[1],
+      conf.high = med_cen_care_parti$tau.ci[2],
+      prop = "")
+  )
+
+df_cen_In_parti <- tibble(
+  mediator = med_cen_In_parti$mediator,
+  effect = "aceB",
+  estimate = med_cen_In_parti$d.avg,
+  p.value = med_cen_In_parti$d.avg.p,
+  conf.low = med_cen_In_parti$d.avg.ci[1],
+  conf.high = med_cen_In_parti$d.avg.ci[2],
+  prop = scales::percent(med_cen_In_parti$n.avg)) %>%
+  bind_rows(
+    tibble(
+      mediator = med_cen_In_parti$mediator,
+      effect = "ade",
+      estimate = med_cen_In_parti$z.avg,
+      p.value = med_cen_In_parti$z.avg.p,
+      conf.low = med_cen_In_parti$z.avg.ci[1],
+      conf.high = med_cen_In_parti$z.avg.ci[2],
+      prop = "")
+      ) %>%
+  bind_rows(
+    tibble(
+      mediator = med_cen_In_parti$mediator,
+      effect = "total",
+      estimate = med_cen_In_parti$tau.coef,
+      p.value = med_cen_In_parti$tau.p,
+      conf.low = med_cen_In_parti$tau.ci[1],
+      conf.high = med_cen_In_parti$tau.ci[2],
+      prop = "")
+  )
+
+df_cen_res_parti <- tibble(
+  mediator = med_cen_res_parti$mediator,
+  effect = "aceB",
+  estimate = med_cen_res_parti$d.avg,
+  p.value = med_cen_res_parti$d.avg.p,
+  conf.low = med_cen_res_parti$d.avg.ci[1],
+  conf.high = med_cen_res_parti$d.avg.ci[2],
+  prop = scales::percent(med_cen_res_parti$n.avg)) %>%
+  bind_rows(
+    tibble(
+      mediator = med_cen_res_parti$mediator,
+      effect = "ade",
+      estimate = med_cen_res_parti$z.avg,
+      p.value = med_cen_res_parti$z.avg.p,
+      conf.low = med_cen_res_parti$z.avg.ci[1],
+      conf.high = med_cen_res_parti$z.avg.ci[2],
+      prop = "")
+      ) %>%
+  bind_rows(
+    tibble(
+      mediator = med_cen_res_parti$mediator,
+      effect = "total",
+      estimate = med_cen_res_parti$tau.coef,
+      p.value = med_cen_res_parti$tau.p,
+      conf.low = med_cen_res_parti$tau.ci[1],
+      conf.high = med_cen_res_parti$tau.ci[2],
+      prop = "")
+  )
+
+df_cen_per_parti <- tibble(
+  mediator = med_cen_per_parti$mediator,
+  effect = "aceB",
+  estimate = med_cen_per_parti$d.avg,
+  p.value = med_cen_per_parti$d.avg.p,
+  conf.low = med_cen_per_parti$d.avg.ci[1],
+  conf.high = med_cen_per_parti$d.avg.ci[2],
+  prop = scales::percent(med_cen_per_parti$n.avg)) %>%
+  bind_rows(
+    tibble(
+      mediator = med_cen_per_parti$mediator,
+      effect = "ade",
+      estimate = med_cen_per_parti$z.avg,
+      p.value = med_cen_per_parti$z.avg.p,
+      conf.low = med_cen_per_parti$z.avg.ci[1],
+      conf.high = med_cen_per_parti$z.avg.ci[2],
+      prop = "")
+      ) %>%
+  bind_rows(
+    tibble(
+      mediator = med_cen_per_parti$mediator,
+      effect = "total",
+      estimate = med_cen_per_parti$tau.coef,
+      p.value = med_cen_per_parti$tau.p,
+      conf.low = med_cen_per_parti$tau.ci[1],
+      conf.high = med_cen_per_parti$tau.ci[2],
+      prop = "")
+  )
+
+mediation_cen_parti <- df_cen_care_parti %>%
+  bind_rows(.,df_cen_In_parti,df_cen_per_parti,df_cen_res_parti)
+
+df_mediation_cen_parti <- mediation_cen_parti %>%
+  filter(effect != "total") %>%
+  mutate(
+    across(where(is.numeric),~ round(.,3)),
+    sig = p.value < 0.05,
+    mediator_lab = rep(
+      c(
+        "环境关注度",
+        "环境效能感",
+        "环境感知度",
+        "责任归因"),
+      each = 2),
+    mediator_lab = 
+      ifelse(effect == "aceB",
+             paste0(
+               mediator_lab,
+               "\n ",
+               estimate,
+               "\n [",
+               conf.low,
+               ", ",
+               conf.high,
+               "]"), 
+             paste0(
+               estimate,
+               "\n [",
+               conf.low,
+               ", ",
+               conf.high,
+               "]"))
+    )
+
+df_mediation_cen_parti <- df_mediation_cen_parti %>%
+  group_by(effect) %>%
+  mutate(estimate_abs = ifelse(p.value < 0.05, abs(estimate),0),
+    total = sum(estimate_abs)),
+    propAceB = estimate_abs/total,
+    propAceB = scales::percent(propAceB),
+    prop = ifelse(sig, propAceB, ""),
+    arrow = ifelse(sig, propAceB, ""),
+    lineStyle = ifelse(sig, "solid", "dashed")
+ )
+
+plot_mediation_cen2parti <- grViz(diagram = 
+       "digraph {
+ graph [layout = dot, rankdir = LR]
+ node [shape = box]
+ edge [arrowhead = vee]
+ 
+ a [label = '对中央政府的评价']
+ b [label = '@@1-1']
+ c [label = '@@1-2']
+ d [label = '@@1-3']
+ e [label = '@@1-4']
+ g [label = '环境行为']
+
+ a -> b
+ a -> c
+ a -> d
+ a -> e
+ 
+ b -> g [style = '@@2-1', label = '@@3-1']
+ c -> g [style = '@@2-2', label = '@@3-2']
+ d -> g [style = '@@2-3', label = '@@3-3']
+ e -> g [style = '@@2-4', label = '@@3-4']
+ 
+ a -> g [style = 'dashed', label = '@@4-2'] #这里直接效应还存在，所以用实线，但这样的话没办法计算间接效应占比，看胡老师的另一篇文章。
+       }
+[1]: df_mediation_cen_parti$mediator_lab[df_mediation_cen_parti$effect == 'aceB']
+[2]: df_mediation_cen_parti$lineStyle[df_mediation_cen_parti$effect == 'aceB']
+[3]: df_mediation_cen_parti$arrow[df_mediation_cen_parti$effect == 'aceB']
+[4]: df_mediation_cen_parti$mediator_lab[df_mediation_cen_parti$effect == 'ade']
+  ")
+plot_mediation_cen2parti
+#   export_svg() %>% 
+#   charToRaw() %>% 
+#   rsvg_png("../outputs/plot_mediation_cen2parti.png")
+# 
+# include_graphics("../outputs/plot_mediation_cen2parti.png")
+
 # summary(med)
-plot(med)
+#plot(med)
 ## sensetive analysis
 # sens_out <- mediation::medsens(med,rho.by = 0.1,effect.type = "indirect",sims = 10)
 # summary(sens_out)
@@ -594,4 +818,53 @@ plot(med)
 综上所述：地方政府对垃圾分类主要是通过内部效能感和环境关注度产生影响。中央政府对环境行为主要是通过内部效能感、责任归因以及环境关注度产生影响；外部效能感均不显著。这结果是将incomePer变为numeric得到的，如果变为order，结果是不是不一样。
 另外，更换了环境抗争行为后因变量后，地方政府也和中央政府有相同的影响。
 :::
+
+# codeClean
+```{r}
+#| label: list-variable
+cgss2021 <- cgss2021 %>%
+  mutate(
+    enCare_std = scales::rescale(as.numeric(enCare),to = c(0,1)),
+    efficacyIn_std = scales::rescale(efficacyIn,to = c(0,1)),
+    efficacyEx_std = scales::rescale(efficacyEx,to = c(0,1)),
+    pollut_perse_std = scales::rescale(pollut_perse,to = c(0,1)),
+    res_classr_std = scales::rescale(as.numeric(res_classr))
+  )
+ls_iv <- c("eva_local_z", "eva_central_z")
+
+ls_med <- c(
+  "enCare_std",
+  "efficacyIn_std",
+  "efficacyEx_std",
+  "pollut_perse_std",
+  "res_classr_std"
+)
+
+ls_ctrl <-
+    c(
+        "edu",
+        "media",
+        "age",
+        "female",
+        "socailLevel_now",
+        "imcomePer_level",
+        "party",
+        "rural",
+        "health",
+        "race"
+    )
+ls_model_parti <- paste(ls_ctrl, collapse = " + ") %>% 
+    paste0("participate ~ ",ls_iv," + ",.)
+ls_model_action <- paste(ls_ctrl, collapse = " + ") %>% 
+    paste0("action ~ ",ls_iv," + ",.)
+ls_model_parti <- paste(ls_ctrl, collapse = " + ") %>% 
+    paste0("participate ~ ","eva_central_z + ",.)
+lm_cen2parti <- glm(ls_model_parti,data = cgss2021,family = binomial)
+```
+
+:::{.callout-warning collapse="true"}
+中介效应检验的时候，每个中介分别检验，即m～x的回归中不加入其他中介；
+总效应检验的时候，所有中介都放进去。其中所有中介都标准化，这样可以做对比。
+:::
+
 
