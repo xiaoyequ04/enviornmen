@@ -351,33 +351,23 @@ modelsummary(mlist_sys2behavior,
 
 lm_local2action <- lm(action ~ eva_local_z + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
 
-lm_local2perse <- lm(pollut_perse ~ eva_local_z + age + female + edu + socailLevel_now + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
-
-lm_local_total_per <- lm(action ~ eva_local_z + pollut_perse + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
+lm_local2perse <- lm(pollut_perse ~ eva_local_z + age + female + edu + socailLevel_now + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021)
 
 lm_local2efficacyIn <- lm(efficacyIn ~ eva_local_z + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
 
-lm_local_total_In <- lm(action ~ eva_local_z + efficacyIn + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
-
-
 lm_local2efficacyEx <- lm(efficacyEx ~ eva_local_z + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
 
-lm_local_total_Ex <- lm(action ~ eva_local_z + efficacyEx + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
-
 lm_local2res <- lm(res_classr ~ eva_local_z + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021)
-
-lm_local_total_res <- lm(action ~ eva_local_z + res_classr + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
 
 lm_local2care <- lm(enCare ~ eva_local_z + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
 
 lm_local_total_care <- lm(action ~ eva_local_z + enCare + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
 
-lm_local_total<- lm(action ~ eva_local_z + efficacyIn + efficacyEx + res_classr + enCare + pollut_perse + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
+lm_local_total<- lm(action ~ eva_local_z + efficacyIn + res_classr + enCare + pollut_perse + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
 
 
 mlist_mediator_local <- list(
   "内部效能感" = lm_local2efficacyIn,
-  "外部效能感" = lm_local2efficacyEx,
   "责任归因" = lm_local2res,
   "环境关注度" = lm_local2care,
   "环境感知" = lm_local2perse
@@ -395,11 +385,6 @@ modelsummary(mlist_mediator_local,
 
 mlist_totla_local <- list(
   "直接效应" = lm_local2action,
-  "内部效能感" = lm_local_total_In,
-  "外部效能感" = lm_local_total_Ex,
-  "责任归因" = lm_local_total_res,
-  "环境关注度" = lm_local_total_care,
-  "环境感知" = lm_local_total_per,
   "总模型" = lm_local_total
 )
 
@@ -414,27 +399,11 @@ modelsummary(mlist_totla_local,
 ```{r}
 glm_local2participate <- glm(participate ~ eva_local_z + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
 
-
-glm_local_total_care <- glm(participate ~ eva_local_z + enCare + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
-
-glm_local_total_In <- glm(participate ~ eva_local_z + efficacyIn + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
-
-glm_local_total_Ex <- glm(participate ~ eva_local_z + efficacyEx + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
-
-glm_local_total_res <- glm(participate ~ eva_local_z + res_classr + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
-
-glm_local_total_per <- glm(participate ~ eva_local_z + pollut_perse + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
-
 glm_local_total <- glm(participate ~ eva_local_z + pollut_perse  + efficacyIn + efficacyEx + res_classr + enCare + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
 
 
 mlist_total_local_participate <-  list(
   "直接效应" = glm_local2participate,
-  "内部效能感" = glm_local_total_In,
-  "外部效能感" = glm_local_total_Ex,
-  "责任感归因" = glm_local_total_res,
-  "环境感知" = glm_local_total_per,
-  "环境关注度" = glm_local_total_care,
   "总模型" = glm_local_total
 )
 
@@ -483,23 +452,13 @@ glm_cen2participate <- glm(participate ~ eva_central_z + age + female + edu + so
 
 lm_cen2care <- lm(enCare ~ eva_central_z + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021)
 
-glm_cen_total_care <- glm(participate ~ eva_central_z + enCare + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
-
 lm_cen2efficacyIn <- lm(efficacyIn ~ eva_central_z + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021)
-
-glm_cen_total_In <- glm(participate ~ eva_central_z + efficacyIn + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
 
 lm_cen2efficacyEx <- lm(efficacyEx ~ eva_central_z + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage,data = cgss2021)
 
-glm_cen_total_Ex <- glm(participate ~ eva_central_z + efficacyEx + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
-
 lm_cen2res <- lm(res_classr ~ eva_central_z + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021)
 
-glm_cen_total_res <- glm(participate ~ eva_central_z + res_classr + age + female + edu + socailLevel_now  + imcomePer_level  + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
-
 lm_cen2per <- lm(pollut_perse ~ eva_central_z + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021)
-
-glm_cen_total_per <- glm(participate ~ eva_central_z + pollut_perse + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
 
 glm_cen_total <- glm(participate ~ eva_central_z + pollut_perse  + efficacyIn + efficacyEx + res_classr + enCare + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage + media,data = cgss2021,family = binomial)
 
@@ -523,11 +482,6 @@ modelsummary(mlist_mediator_cen,
 ```{r}
 mlist_total_cen <- list(
   "直接效应" = glm_cen2participate,
-  "内部效能感" = glm_cen_total_In,
-  "外部效能感" = glm_cen_total_Ex,
-  "责任感归因" = glm_cen_total_res,
-  "环境感知" = glm_cen_total_per,
-  "环境关注度" = glm_cen_total_care,
   "总模型" = glm_cen_total
 )
 
