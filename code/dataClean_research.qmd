@@ -111,7 +111,7 @@ ls_direct_parti <- paste(ls_cv,collapse = " + ") %>%
 
 glm_direct_parti <- map(ls_direct_parti, ~ glm(.,data = cgss2021,family = binomial))
 
-names(glm_direct_parti) <- c("环境行为","环境行为")
+names(glm_direct_parti) <- c("环境抗争行为(中央)","环境抗争行为(地方)")
 
 modelsummary(glm_direct_parti,
              stars = TRUE,
@@ -242,6 +242,8 @@ result_mediationIn <- map2(
 
 
 
+
+
 # code2_participate
 
 ## Directeffect
@@ -255,16 +257,64 @@ ls_direct_local2parti <- paste(ls_cv,collapse = " + ") %>%
   paste0("participate ~ ","eva_local_z +",.)
 glm_direct_local2parti <- glm(ls_direct_local2parti,family = binomial,data = cgss2021)
 
-mlist_direct <- list(
+mlist_direct_par <- list(
   "环境行为(中央)" = glm_direct_cen2parti,
   "环境行为(地方)" = glm_direct_local2parti
 )
 
-modelsummary(mlist_direct,
+modelsummary(mlist_direct_par,
              stars = TRUE,
              coef_omit = "(Intercept)",
              coef_rename = cm)
 
+plot_direct_par <- dwplot(
+  mlist_direct_par,
+  vline = geom_vline(xintercept = 0, colour = "grey60", linetype = 2)) %>%
+  relabel_predictors(
+    c(
+      eva_central_z = "对中央政府的评价",
+      eva_local_z = "对地方政府的评价",
+      edu = "受教育程度",
+      socailLevel_now = "社会经济地位",
+      media = "媒介使用",
+      age = "年龄",
+      female = "性别",
+      party = "党派",
+      imcomePer_level = "个人收入",
+      race = "民族",
+      rural = "城镇户口",
+      health = "健康状况",
+      marriage = "婚姻状况"
+    )
+  ) + 
+  theme_bw(base_size = 4) +
+  xlab("相关系数") + 
+  ylab("") +
+  ggtitle("政治信任对环境抗争行为的影响") + 
+  theme_set(theme_gray(base_family = "STKaiti")) +
+  labs(caption = "来源：2021年中国社会综合调查。") +
+  theme(
+        plot.title = element_text(face = "bold"),
+        legend.position = "right",
+        legend.justification = c(0, 0),
+        legend.background = element_rect(colour = "grey80"),
+        legend.title = element_blank()
+    ) +
+  scale_colour_grey(
+    start = .3,
+    end = .7,
+    breaks = c("环境行为(地方)", "环境行为(中央)"),
+    labels = c("对地方政府的评价","对中央政府的评价")
+    ) +
+  scale_shape_discrete(
+    breaks = c("对地方政府的评价", "对中央政府的评价"),
+    labels = c("对地方政府的评价",  "对中央政府的评价")
+    ) +
+    guides(
+      shape = guide_legend(), 
+      colour = guide_legend()
+    )
+plot_direct_par
 ```
 
 ## Mediaeffct
@@ -655,42 +705,191 @@ df_resultMed_local2ac <- tibble(
   conf.low = result_local2ac[[1]]$d.avg.ci[1],
   conf.high = result_local2ac[[1]]$d.avg.ci[2],
   prop = scales::percent(result_local2ac[[1]]$n.avg)
-)
-
-  map(result_local2ac, function(Group) {
-  map2_df(Group, ls_med, function(Result, Mediator) {
+  ) %>%
+  bind_rows(
     tibble(
-      mediator = Mediator,
-      effect = "aceB",
-      estimate = Result$d.avg,
-      p.value = Result$d.avg.p,
-      conf.low = Result$d.avg.ci[1],
-      conf.high = Result$d.avg.ci[2],
-      prop = scales::percent(Result$n.avg)
+      mediator = result_local2ac[[1]]$mediator,
+      effect = "ade",
+      estimate = result_local2ac[[1]]$z.avg,
+      p.value = result_local2ac[[1]]$z.avg.p,
+      conf.low = result_local2ac[[1]]$z.avg.ci[1],
+      conf.high = result_local2ac[[1]]$z.avg.ci[2],
+      prop = "")
     ) %>%
-      bind_rows(
-        tibble(
-          mediator = Mediator,
-          effect = "ade",
-          estimate = Result$z.avg,
-          p.value = Result$z.avg.p,
-          conf.low = Result$z.avg.ci[1],
-          conf.high = Result$z.avg.ci[2],
-          prop = ""
-        )
-      ) %>%
-      bind_rows(
-        tibble(
-          mediator = Mediator,
-          effect = "total",
-          estimate = Result$tau.coef,
-          p.value = Result$tau.p,
-          conf.low = Result$tau.ci[1],
-          conf.high = Result$tau.ci[2],
-          prop = ""
-        )
-      )
-  })
-})
-result_local2ac
+  bind_rows(
+    tibble(
+      mediator = result_local2ac[[1]]$mediator,
+      effect = "total",
+      estimate = result_local2ac[[1]]$tau.coef,
+      p.value = result_local2ac[[1]]$tau.p,
+      conf.low = result_local2ac[[1]]$tau.ci[1],
+      conf.high = result_local2ac[[1]]$tau.ci[2],
+      prop = "")
+    ) %>%
+  bind_rows(
+    tibble(
+      mediator = result_local2ac[[2]]$mediator,
+      effect = "aceB",
+      estimate = result_local2ac[[2]]$d.avg,
+      p.value = result_local2ac[[2]]$d.avg.p,
+      conf.low = result_local2ac[[2]]$d.avg.ci[1],
+      conf.high = result_local2ac[[2]]$d.avg.ci[2],
+      prop = scales::percent(result_local2ac[[2]]$n.avg))
+    ) %>%
+  bind_rows(
+    tibble(
+      mediator = result_local2ac[[2]]$mediator,
+      effect = "ade",
+      estimate = result_local2ac[[2]]$z.avg,
+      p.value = result_local2ac[[2]]$z.avg.p,
+      conf.low = result_local2ac[[2]]$z.avg.ci[1],
+      conf.high = result_local2ac[[2]]$z.avg.ci[2],
+      prop = "")
+    ) %>%
+  bind_rows(
+    tibble(
+      mediator = result_local2ac[[2]]$mediator,
+      effect = "total",
+      estimate = result_local2ac[[2]]$tau.coef,
+      p.value = result_local2ac[[2]]$tau.p,
+      conf.low = result_local2ac[[2]]$tau.ci[1],
+      conf.high = result_local2ac[[2]]$tau.ci[2],
+      prop = "")
+    ) %>%
+  bind_rows(
+    tibble(
+      mediator = result_local2ac[[3]]$mediator,
+      effect = "aceB",
+      estimate = result_local2ac[[3]]$d.avg,
+      p.value = result_local2ac[[3]]$d.avg.p,
+      conf.low = result_local2ac[[3]]$d.avg.ci[1],
+      conf.high = result_local2ac[[3]]$d.avg.ci[2],
+      prop = scales::percent(result_local2ac[[3]]$n.avg))
+    ) %>%
+  bind_rows(
+    tibble(
+      mediator = result_local2ac[[3]]$mediator,
+      effect = "ade",
+      estimate = result_local2ac[[3]]$z.avg,
+      p.value = result_local2ac[[3]]$z.avg.p,
+      conf.low = result_local2ac[[3]]$z.avg.ci[1],
+      conf.high = result_local2ac[[3]]$z.avg.ci[2],
+      prop = "")
+    ) %>%
+  bind_rows(
+    tibble(
+      mediator = result_local2ac[[3]]$mediator,
+      effect = "total",
+      estimate = result_local2ac[[3]]$tau.coef,
+      p.value = result_local2ac[[3]]$tau.p,
+      conf.low = result_local2ac[[3]]$tau.ci[1],
+      conf.high = result_local2ac[[3]]$tau.ci[2],
+      prop = "")
+    ) %>%
+  bind_rows(
+    tibble(
+      mediator = result_local2ac[[4]]$mediator,
+      effect = "aceB",
+      estimate = result_local2ac[[4]]$d.avg,
+      p.value = result_local2ac[[4]]$d.avg.p,
+      conf.low = result_local2ac[[4]]$d.avg.ci[1],
+      conf.high = result_local2ac[[4]]$d.avg.ci[2],
+      prop = scales::percent(result_local2ac[[4]]$n.avg))
+    ) %>%
+  bind_rows(
+    tibble(
+      mediator = result_local2ac[[4]]$mediator,
+      effect = "ade",
+      estimate = result_local2ac[[4]]$z.avg,
+      p.value = result_local2ac[[4]]$z.avg.p,
+      conf.low = result_local2ac[[4]]$z.avg.ci[1],
+      conf.high = result_local2ac[[4]]$z.avg.ci[2],
+      prop = "")
+    ) %>%
+  bind_rows(
+    tibble(
+      mediator = result_local2ac[[4]]$mediator,
+      effect = "total",
+      estimate = result_local2ac[[4]]$tau.coef,
+      p.value = result_local2ac[[4]]$tau.p,
+      conf.low = result_local2ac[[4]]$tau.ci[1],
+      conf.high = result_local2ac[[4]]$tau.ci[2],
+      prop = "")
+  )
+
+df_mediation_local2ac <- df_resultMed_local2ac %>%
+  filter(effect != "total") %>%
+  mutate(
+    across(where(is.numeric),~ round(.,3)),
+    sig = p.value < 0.05,
+    mediator_lab = rep(
+      c(
+        "环境效能感",
+        "环境关注度",
+        "责任归因",
+        "环境感知度"),
+      each = 2),
+    mediator_lab = 
+      ifelse(effect == "aceB",
+             paste0(
+               mediator_lab,
+               "\n ",
+               estimate,
+               "\n [",
+               conf.low,
+               ", ",
+               conf.high,
+               "]"), 
+             paste0(
+               estimate,
+               "\n [",
+               conf.low,
+               ", ",
+               conf.high,
+               "]"))
+    )
+
+df_mediation_local2ac <- df_mediation_local2ac %>%
+  group_by(effect) %>%
+  mutate(
+    estimate_abs = ifelse(p.value < .05,abs(estimate),0),
+    total = sum(estimate_abs),
+    propAceB = estimate_abs/total,
+    propAceB = scales::percent(propAceB),
+    prop = ifelse(sig, propAceB, ""),
+    arrow = ifelse(sig, propAceB, ""),
+    lineStyle = ifelse(sig, "solid", "dashed"))
+
+plot_mediation_local2ac <- grViz(diagram = 
+       "digraph {
+ graph [layout = dot, rankdir = LR]
+ node [shape = box]
+ edge [arrowhead = vee]
+ 
+ a [label = '对地方政府的评价']
+ b [label = '@@1-1']
+ c [label = '@@1-2']
+ d [label = '@@1-3']
+ e [label = '@@1-4']
+ g [label = '亲环境行为']
+
+ a -> b
+ a -> c
+ a -> d
+ a -> e
+ 
+ b -> g [style = '@@2-1', label = '@@3-1']
+ c -> g [style = '@@2-2', label = '@@3-2']
+ d -> g [style = '@@2-3', label = '@@3-3']
+ e -> g [style = '@@2-4', label = '@@3-4']
+ 
+ a -> g [style = 'dashed', label = '@@4-1']
+       }
+[1]: df_mediation_local2ac$mediator_lab[df_mediation_local2ac$effect == 'aceB']
+[2]: df_mediation_local2ac$lineStyle[df_mediation_local2ac$effect == 'aceB']
+[3]: df_mediation_local2ac$arrow[df_mediation_local2ac$effect == 'aceB']
+[4]: df_mediation_local2ac$mediator_lab[df_mediation_local2ac$effect == 'ade']
+  ")
+# 看[4]，可以知道这里显示的直接效应实际上就是第一个ade，但这样做是否正确？
+summary(result_local2ac[[2]])
 ```
