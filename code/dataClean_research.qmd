@@ -41,7 +41,7 @@ cgss2021$participate <- as.factor(cgss2021$participate)
 
 # regression
 ```{r}
-#| label: regression
+#| label: list_variable
 cm <-c(
   eva_local_z = "对地方政府的评价",
   eva_central_z = "对中央政府的评价",
@@ -96,14 +96,16 @@ ls_cv <-
         "party",
         "rural",
         "health",
-        "race"
+        "race",
+        "marriage"
     )
 
 ```
-
-# directEffcet
+# code1
+## directEffcet
 ```{r}
 #| label: directeffect
+#| eval: false
 ls_direct_parti <- paste(ls_cv,collapse = " + ") %>%
   paste0("participate ~ ",ls_iv," + ",.)
 
@@ -146,11 +148,12 @@ fig1
 
 ```
 
-# medEffect
+## medEffect
 
-## cen2med
+### cen2med
 ```{r}
 #| label: cen2med
+#| eval: false
 lm_med_cen <- paste(ls_cv,collapse = " + ") %>%
   paste0(ls_med," ~ eva_central_z + ",.)
 
@@ -164,9 +167,10 @@ modelsummary(lm_cen2med,
              coef_rename = cm)
 ```
 
-## local2med
+### local2med
 ```{r}
 #| label: local2med
+#| eval: false
 lm_med_local <- paste(ls_cv,collapse = " + ") %>%
   paste0(ls_med," ~ eva_local_z + ",.)
 
@@ -182,10 +186,11 @@ modelsummary(lm_local2med,
 
 
 
-# totalEffect
-## cen2parti
+## totalEffect
+### cen2parti
 ```{r}
 #| label: cen2parti
+#| eval: false
 glm_cen_total <- paste(ls_cv,collapse = " + ") %>%
   paste0("participate"," ~ eva_central_z + ",
          paste(ls_med,collapse = " + "), 
@@ -202,9 +207,10 @@ modelsummary(glm_cen2parti_total,
              coef_rename = cm)
 ```
 
-# mediation analysis
+## mediation analysis
 ```{r}
 #| label: mediation analysis
+#| eval: false
 med_cen_care_parti <- mediation::mediate(
   model.m = lm_cen2med[[1]],
   model.y = glm_cen2parti_total[1],
@@ -233,10 +239,14 @@ result_mediationIn <- map2(
 ```
 
 
-# code
+
+
+
+# code2_participate
 
 ## Directeffect
 ```{r}
+#| label: direct
 ls_direct_cen2parti <- paste(ls_cv,collapse = " + ") %>%
   paste0("participate ~ ","eva_central_z +",.)
 glm_direct_cen2parti <- glm(ls_direct_cen2parti,family = binomial,data = cgss2021)
@@ -261,6 +271,7 @@ modelsummary(mlist_direct,
 
 ### cen2med
 ```{r}
+#| label: indirect_cen
 med_cen2In <- paste(ls_cv,collapse = " + ") %>%
   paste0("efficacyIn"," ~ eva_central_z + ",.)
 lm_med_cen2In <- lm(med_cen2In,data = cgss2021)
@@ -279,9 +290,9 @@ lm_med_cen2care <- lm(med_cen2care,data = cgss2021)
 
 mlist_cen2med <- list(
   "内部效能感" = lm_med_cen2In,
+  "环境关注度" = lm_med_cen2care,
   "责任感归因" = lm_med_cen2res,
-  "环境感知" = lm_med_cen2per,
-  "环境关注度" = lm_med_cen2care
+  "环境感知" = lm_med_cen2per
 )
 
 modelsummary(mlist_cen2med,
@@ -293,6 +304,7 @@ modelsummary(mlist_cen2med,
 
 ### local2med
 ```{r}
+#| label: indirect_local
 med_local2In <- paste(ls_cv,collapse = " + ") %>%
   paste0("efficacyIn"," ~ eva_local_z + ",.)
 lm_med_local2In <- lm(med_local2In,data = cgss2021)
@@ -311,9 +323,9 @@ lm_med_local2care <- lm(med_local2care,data = cgss2021)
 
 mlist_local2med <- list(
   "内部效能感" = lm_med_local2In,
+  "环境关注度" = lm_med_local2care,
   "责任感归因" = lm_med_local2res,
-  "环境感知" = lm_med_local2per,
-  "环境关注度" = lm_med_local2care
+  "环境感知" = lm_med_local2per
 )
 
 modelsummary(mlist_local2med,
@@ -325,6 +337,7 @@ modelsummary(mlist_local2med,
 
 ## totaleffect
 ```{r}
+#| label: total
 ls_total_local2parti <- paste(ls_cv,collapse = " + ") %>%
   paste0("participate"," ~ eva_local_z + ",
          paste(ls_med,collapse = " + "),
@@ -352,16 +365,6 @@ modelsummary(mlist_total,
 
 ## median analysis
 ```{r}
-med_cen_care_parti <- mediation::mediate(
-  model.m = lm_med_cen2care,
-  model.y = glm_total_cen2parti,
-  treat = "eva_central_z",
-  mediator = "enCare",
-  sims = 1000,
-  robustSE = TRUE,
-  dropobs = TRUE)
-
-
 result_cen2par <- map2(
   mlist_cen2med,
   ls_med,
@@ -370,7 +373,6 @@ result_cen2par <- map2(
     model.m = .x,
     treat = "eva_central_z",
     mediator = .y,
-    #boot = TRUE,
     sims = 1000,
     robustSE = TRUE, 
     dropobs = TRUE
@@ -385,15 +387,310 @@ result_local2par <- map2(
     model.m = .x,
     treat = "eva_local_z",
     mediator = .y,
-    #boot = TRUE,
     sims = 1000,
     robustSE = TRUE, 
     dropobs = TRUE
   )
 )
+
+result_mediation_par <- list(central2par = result_cen2par, local2par = result_local2par)
+
+qsave(result_mediation_par, "../outputs/result_mediation_par.qs", preset = "archive")
+```
+
+## plot
+### participate
+```{r}
+df_resultMed <- map(result_mediation_par, function(aGroup) {
+  map2_df(aGroup, ls_med, function(aResult, aMediator) {
+    tibble(
+      mediator = aMediator,
+      effect = "aceB",
+      estimate = aResult$d.avg,
+      p.value = aResult$d.avg.p,
+      conf.low = aResult$d.avg.ci[1],
+      conf.high = aResult$d.avg.ci[2],
+      prop = scales::percent(aResult$n.avg)
+    ) %>%
+      bind_rows(
+        tibble(
+          mediator = aMediator,
+          effect = "ade",
+          estimate = aResult$z.avg,
+          p.value = aResult$z.avg.p,
+          conf.low = aResult$z.avg.ci[1],
+          conf.high = aResult$z.avg.ci[2],
+          prop = ""
+        )
+      ) %>%
+      bind_rows(
+        tibble(
+          mediator = aMediator,
+          effect = "total",
+          estimate = aResult$tau.coef,
+          p.value = aResult$tau.p,
+          conf.low = aResult$tau.ci[1],
+          conf.high = aResult$tau.ci[2],
+          prop = ""
+        )
+      )
+  })
+})
+
+df_totalMed <- map_dbl(df_resultMed, function(aData) {
+ filter(aData, effect == "aceB") %>%
+  mutate(estimate = ifelse(p.value < 0.05, abs(estimate), 0)) %>%
+  # calculating the sig effects
+  summarise(total = sum(estimate)) %>%
+  pull(total)
+})
+
+df_resultMed <- map2(df_resultMed, df_totalMed,
+                      ~mutate(.x, propAceB = abs(estimate)/.y,
+                              propAceB = scales::percent(propAceB)))
+
+df_plot_mediation <- map(df_resultMed, function(aData){
+ aData %>%
+ filter(effect != "total") %>%
+ mutate(
+  across(where(is.numeric), ~ round(., digits = 3)),
+  sig = p.value < 0.05,
+  conf.low = ifelse(
+   p.value < 0.05 & 
+    estimate < 0 &
+    !str_detect(conf.low, "^\\-"),
+   paste0("-", as.character(conf.low)),
+   as.character(conf.low)
+  ),
+  # make sure minus for 0s
+  conf.high = ifelse(
+   p.value < 0.05 & 
+    estimate < 0 & 
+    !str_detect(conf.high, "^\\-"),
+   paste0("-", as.character(conf.high)),
+   as.character(conf.high)
+  ),
+  mediator_lab = rep(
+   c(
+    "环境效能感",
+    "环境关注度",
+    "责任归因",
+    "环境感知"
+   ),
+   each = 2
+  ),
+  mediator_lab = 
+   ifelse(effect == "aceB",
+          paste0(
+    mediator_lab,
+    "\n ",
+    estimate,
+    "\n [",
+    conf.low,
+    ", ",
+    conf.high,
+    "]"), 
+    paste0(
+    estimate,
+    "\n [",
+    conf.low,
+    ", ",
+    conf.high,
+    "]")),
+  prop = ifelse(sig, propAceB, ""),
+  arrow = ifelse(sig, propAceB, ""),
+  lineStyle = ifelse(sig, "solid", "dashed")
+ )
+})
+
+
+
+plot_mediation_parti <- grViz(diagram = 
+       "digraph {
+ 
+ graph [layout = dot, rankdir = LR]
+
+ node [shape = box]
+ edge [arrowhead = vee]
+ 
+ a [label = '对中央政府的评价']
+ b [label = '@@1-1']
+ c [label = '@@1-2']
+ d [label = '@@1-3']
+ e [label = '@@1-4']
+ g [label = '环境行为']
+
+ h [label = '对地方政府的评价']
+ i [label = '@@5-1']
+ j [label = '@@5-2']
+ k [label = '@@5-3']
+ l [label = '@@5-4']
+ n [label = '环境行为']
+
+ a -> b
+ a -> c
+ a -> d
+ a -> e
+ 
+ b -> g [style = '@@2-1', label = '@@3-1']
+ c -> g [style = '@@2-2', label = '@@3-2']
+ d -> g [style = '@@2-3', label = '@@3-3']
+ e -> g [style = '@@2-4', label = '@@3-4']
+ 
+ a -> g [style = 'dashed', label = '@@4-1']
+
+ g -> h [style = 'invisible', arrowhead = 'none']
+
+ h -> i
+ h -> j
+ h -> k
+ h -> l
+ 
+ i -> n [style = '@@6-1', label = '@@7-1']
+ j -> n [style = '@@6-2', label = '@@7-2']
+ k -> n [style = '@@6-3', label = '@@7-3']
+ l -> n [style = '@@6-4', label = '@@7-4']
+ 
+ h -> n [style = 'dashed', label = '@@8-1']
+ 
+  }
+
+[1]: df_plot_mediation$central2par$mediator_lab[df_plot_mediation$central2par$effect == 'aceB']
+[2]: df_plot_mediation$central2par$lineStyle[df_plot_mediation$central2par$effect == 'aceB']
+[3]: df_plot_mediation$central2par$arrow[df_plot_mediation$central2par$effect == 'aceB']
+[4]: df_plot_mediation$central2par$mediator_lab[df_plot_mediation$central2par$effect == 'ade']
+[5]: df_plot_mediation$local2par$mediator_lab[df_plot_mediation$local2par$effect == 'aceB']
+[6]: df_plot_mediation$local2par$lineStyle[df_plot_mediation$local2par$effect == 'aceB']
+[7]: df_plot_mediation$local2par$arrow[df_plot_mediation$local2par$effect == 'aceB']
+[8]: df_plot_mediation$local2par$mediator_lab[df_plot_mediation$local2par$effect == 'ade']
+") 
+#   export_svg() %>% 
+#   charToRaw() %>% 
+#   rsvg_png("../outputs/plot_mediation_total.png")
+# 
+# include_graphics("../outputs/plot_mediation_total.png")
 ```
 
 
 
 
 
+
+
+
+# code2_action
+
+## Directeffect_action
+```{r}
+#| label: direct_action
+ls_direct_cen2ac <- paste(ls_cv,collapse = " + ") %>%
+  paste0("action ~ ","eva_central_z +",.)
+lm_direct_cen2ac <- lm(ls_direct_cen2ac,data = cgss2021)
+
+ls_direct_local2ac <- paste(ls_cv,collapse = " + ") %>%
+  paste0("action ~ ","eva_local_z +",.)
+lm_direct_local2ac <- lm(ls_direct_local2ac,data = cgss2021)
+
+mlist_direct_action <- list(
+  "亲环境行为(中央)" = lm_direct_cen2ac,
+  "亲环境行为(地方)" = lm_direct_local2ac
+)
+
+modelsummary(mlist_direct_action,
+             stars = TRUE,
+             coef_omit = "(Intercept)",
+             coef_rename = cm)
+
+```
+
+:::{.callout-note collapse="true"}
+1. 中央政府对亲环境行为不显著，因此后续无须做中介效应分析。
+2. 地方政府对中介变量的回归已经在participate那一节做过，因此无需再做，只需要看总效应即可。
+:::
+## Mediaeffct_action
+
+## totaleffect_action
+```{r}
+#| label: total
+ls_total_local2ac <- paste(ls_cv,collapse = " + ") %>%
+  paste0("action"," ~ eva_local_z + ",
+         paste(ls_med,collapse = " + "),
+         " + ",
+         .)
+lm_total_local2ac <- lm(ls_total_local2ac,data = cgss2021)
+
+mlist_total_action <- list(
+  "总效应(地方)" = lm_total_local2ac
+)
+
+modelsummary(mlist_total_action,
+             stars = TRUE,
+             coef_omit = "(Intercept)",
+             coef_rename = cm)
+```
+:::{.callout-important collapse="false"}
+1. 总效应结果显示，所有中介变量加进去后，地方政府评价的显著性只达到90%，这说明中介效应稀释了直接效应。不过环境感知度中介效应不明显，这说明环境感知对亲环境行为并没有影响。
+:::
+## median analysis
+```{r}
+result_local2ac <- map2(
+  mlist_local2med,
+  ls_med,
+  ~ mediation::mediate(
+    model.y = mlist_total_action[[1]],
+    model.m = .x,
+    treat = "eva_local_z",
+    mediator = .y,
+    sims = 1000,
+    robustSE = TRUE, 
+    dropobs = TRUE
+  )
+)
+
+df_resultMed_local2ac <- tibble(
+  mediator = result_local2ac[[1]]$mediator,
+  effect = "aceB",
+  estimate = result_local2ac[[1]]$d.avg,
+  p.value = result_local2ac[[1]]$d.avg.p,
+  conf.low = result_local2ac[[1]]$d.avg.ci[1],
+  conf.high = result_local2ac[[1]]$d.avg.ci[2],
+  prop = scales::percent(result_local2ac[[1]]$n.avg)
+)
+
+  map(result_local2ac, function(Group) {
+  map2_df(Group, ls_med, function(Result, Mediator) {
+    tibble(
+      mediator = Mediator,
+      effect = "aceB",
+      estimate = Result$d.avg,
+      p.value = Result$d.avg.p,
+      conf.low = Result$d.avg.ci[1],
+      conf.high = Result$d.avg.ci[2],
+      prop = scales::percent(Result$n.avg)
+    ) %>%
+      bind_rows(
+        tibble(
+          mediator = Mediator,
+          effect = "ade",
+          estimate = Result$z.avg,
+          p.value = Result$z.avg.p,
+          conf.low = Result$z.avg.ci[1],
+          conf.high = Result$z.avg.ci[2],
+          prop = ""
+        )
+      ) %>%
+      bind_rows(
+        tibble(
+          mediator = Mediator,
+          effect = "total",
+          estimate = Result$tau.coef,
+          p.value = Result$tau.p,
+          conf.low = Result$tau.ci[1],
+          conf.high = Result$tau.ci[2],
+          prop = ""
+        )
+      )
+  })
+})
+result_local2ac
+```

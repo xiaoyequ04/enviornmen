@@ -361,7 +361,6 @@ lm_local2res <- lm(res_classr ~ eva_local_z + age + female + edu + socailLevel_n
 
 lm_local2care <- lm(enCare ~ eva_local_z + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
 
-lm_local_total_care <- lm(action ~ eva_local_z + enCare + age + female + edu + socailLevel_now + imcomePer_level  + party + race + rural + health + marriage+ media,data = cgss2021)
 
 lm_local_total<- lm(action ~ eva_local_z + efficacyIn + res_classr + enCare + pollut_perse + age + female + edu + socailLevel_now  + imcomePer_level + party + race + rural + health + marriage+ media,data = cgss2021)
 
@@ -409,6 +408,7 @@ mlist_total_local_participate <-  list(
 
 modelsummary(mlist_total_local_participate,
              stars = TRUE,
+             coef_omit = "(Intercept)",
              coef_rename = cm)
 
 ```
@@ -728,6 +728,7 @@ df_mediation_cen_parti <- df_mediation_cen_parti %>%
          arrow = ifelse(sig, propAceB, ""),
          lineStyle = ifelse(sig, "solid", "dashed")
  )
+df_mediation_cen_parti
 
 plot_mediation_cen2parti <- grViz(diagram = 
        "digraph {
@@ -759,7 +760,7 @@ plot_mediation_cen2parti <- grViz(diagram =
 [3]: df_mediation_cen_parti$arrow[df_mediation_cen_parti$effect == 'aceB']
 [4]: df_mediation_cen_parti$mediator_lab[df_mediation_cen_parti$effect == 'ade']
   ")
-plot_mediation_cen2parti
+# plot_mediation_cen2parti
 #   export_svg() %>% 
 #   charToRaw() %>% 
 #   rsvg_png("../outputs/plot_mediation_cen2parti.png")
